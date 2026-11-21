@@ -41,7 +41,9 @@ const nouvelleDemande = (ongletId) => {
 async function surligner(ongletId, liste, demande) {
   try {
     await chrome.scripting.executeScript({ target: { tabId: ongletId }, files: SCRIPTS_INJECTES })
-    const toujoursActif = demandes.get(ongletId) === demande && (await ongletActif(ongletId)) && (await estConnecte())
+    // Le numéro est comparé en dernier, sans attente avant l'envoi : une désactivation passée pendant les lectures
+    // est vue, et une désactivation plus tardive envoie son « retirer » après ce « surligner »
+    const toujoursActif = (await ongletActif(ongletId)) && (await estConnecte()) && demandes.get(ongletId) === demande
     if (!toujoursActif) return
     await chrome.tabs.sendMessage(ongletId, { type: 'surligner', liste })
     await marquerSurligne(ongletId)
@@ -72,9 +74,9 @@ async function changerOnglet(ongletId, actif) {
   const vu = demandeCourante(ongletId)
   const liste = await chargerListe()
   if (!liste) return { actif: false, deconnecte: true }
-  if (demandes.get(ongletId) !== vu || !(await estConnecte())) return { actif: await ongletActif(ongletId) }
+  if (!(await estConnecte()) || demandes.get(ongletId) !== vu) return { actif: await ongletActif(ongletId) }
   const demande = nouvelleDemande(ongletId)
-  const encoreValable = async () => demandes.get(ongletId) === demande && (await estConnecte())
+  const encoreValable = async () => (await estConnecte()) && demandes.get(ongletId) === demande
   await activerOnglet(ongletId, liste)
   // Une désactivation ou une déconnexion a pu passer pendant l'écriture, sans voir cet onglet : on l'annule
   if (!(await encoreValable())) {

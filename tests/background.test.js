@@ -176,6 +176,28 @@ describe('activation d’un onglet (règles « extension - activation » et « l
     expect(messagesPage()).toEqual([[3, { type: 'retirer' }]])
   })
 
+  it('désactivation pendant les vérifications qui suivent l’injection : la liste n’est pas envoyée (activation 5)', async () => {
+    Object.assign(chrome.storage.session.donnees, { 'onglet-3': true, 'liste-3': LISTE })
+    // Bloque la seconde lecture de l'état de l'onglet, celle que surligner() fait après l'injection
+    let liberer
+    let lectures = 0
+    const lire = chrome.storage.session.get.getMockImplementation()
+    chrome.storage.session.get.mockImplementation(async (cle) => {
+      const valeurs = await lire(cle)
+      if (cle === 'onglet-3' && ++lectures === 2) await new Promise((resoudre) => (liberer = resoudre))
+      return valeurs
+    })
+    const chargement = chrome.tabs.onUpdated.addListener.mock.calls[0][0]
+
+    const page = chargement(3, { status: 'complete' })
+    await vi.waitFor(() => expect(liberer).toBeDefined())
+    await envoyer({ type: 'changerOnglet', ongletId: 3, actif: false })
+    liberer()
+    await page
+
+    expect(messagesPage()).toEqual([[3, { type: 'retirer' }]])
+  })
+
   it('onglet fermé pendant le chargement de sa liste : rien n’est enregistré pour lui', async () => {
     let repondre
     fetch.mockReturnValueOnce(new Promise((resoudre) => (repondre = resoudre)))
