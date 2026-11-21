@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Dramatoons Highlighter",
+  "version": "2.5.0",
+  "description": "Surligne, dans les pages que vous visitez, les webtoons de votre bibliothèque Dramatoons, avec votre note et votre dernier chapitre lu.",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "dramatoons-highlighter@dramatoons.ovh",
+      "strict_min_version": "142.0",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
+    }
+  },
+  "icons": {
+    "16": "icons/dramatoons_16.png",
+    "32": "icons/dramatoons_32.png",
+    "48": "icons/dramatoons_48.png",
+    "128": "icons/dramatoons_128.png"
+  }
+}

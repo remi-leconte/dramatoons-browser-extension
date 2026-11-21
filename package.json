@@ -1,0 +1,15 @@
+{
+  "name": "dramatoons-browser-extension",
+  "version": "2.5.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "scripts": {
+    "ci": "node scripts/verifier.mjs && web-ext lint --source-dir src --warnings-as-errors",
+    "test": "vitest run --passWithNoTests"
+  },
+  "devDependencies": {
+    "vitest": "^5.1.1",
+    "web-ext": "^10.8.0"
+  }
+}
