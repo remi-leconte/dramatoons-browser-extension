@@ -15,9 +15,11 @@
     }
   },
   "permissions": [
-    "storage"
+    "storage",
+    "scripting"
   ],
   "host_permissions": [
+    "<all_urls>",
     "https://api.dramatoons.ovh/*",
     "http://127.0.0.1:8081/*"
   ],

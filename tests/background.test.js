@@ -52,17 +52,159 @@ describe('arrière-plan', () => {
     expect(await envoyer({ type: 'utilisateur' })).toEqual({ ok: false, erreur: 'GET /me : 500' })
   })
 
-  it('change et lit l’état d’un onglet', async () => {
-    expect(await envoyer({ type: 'changerOnglet', ongletId: 3, actif: true })).toEqual({ ok: true })
-    expect(await envoyer({ type: 'etatOnglet', ongletId: 3 })).toEqual({ ok: true, resultat: true })
-  })
-
-  it('oublie l’état d’un onglet à sa fermeture (règle « extension - activation » 4)', async () => {
-    chrome.storage.session.donnees['onglet-3'] = true
+  it('oublie l’état et la liste d’un onglet à sa fermeture (règle « extension - activation » 4)', async () => {
+    Object.assign(chrome.storage.session.donnees, { 'onglet-3': true, 'liste-3': [] })
     const fermeture = chrome.tabs.onRemoved.addListener.mock.calls[0][0]
 
     await fermeture(3)
 
     expect(chrome.storage.session.donnees).toEqual({})
+  })
+})
+
+const API_LISTE = [
+  { title: { title: 'Solo Leveling' }, secondaryTitles: {}, userProgress: { state: 'reading', rate: 4, bookmark: 12 } },
+]
+const LISTE = [{ titrePrincipal: 'Solo Leveling', titres: ['Solo Leveling'], etat: 'reading', note: 4, chapitre: 12 }]
+
+describe('activation d’un onglet (règles « extension - activation » et « liste des webtoons »)', () => {
+  beforeEach(() => {
+    chrome.storage.local.donnees.jeton = 'jeton-1'
+  })
+
+  const injections = () => chrome.scripting.executeScript.mock.calls.map(([options]) => options)
+  const messagesPage = () => chrome.tabs.sendMessage.mock.calls
+
+  it('activation : charge la liste une fois, la garde, injecte le surlignage et l’envoie à la page', async () => {
+    fetch.mockResolvedValueOnce(reponse(200, API_LISTE))
+
+    expect(await envoyer({ type: 'changerOnglet', ongletId: 3, actif: true })).toEqual({ ok: true, resultat: { actif: true } })
+
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(fetch.mock.calls[0][0]).toMatch(/\/webtoons\?mode=ext&pagination=false$/)
+    expect(chrome.storage.session.donnees).toEqual({ 'onglet-3': true, 'liste-3': LISTE })
+    expect(injections()).toEqual([{ target: { tabId: 3 }, files: ['lib/correspondance.js', 'contenu.js'] }])
+    expect(messagesPage()).toEqual([[3, { type: 'surligner', liste: LISTE }]])
+    expect(await envoyer({ type: 'etatOnglet', ongletId: 3 })).toEqual({ ok: true, resultat: true })
+  })
+
+  it('activation déconnecté : rien n’est activé ni injecté', async () => {
+    delete chrome.storage.local.donnees.jeton
+
+    expect(await envoyer({ type: 'changerOnglet', ongletId: 3, actif: true })).toEqual({
+      ok: true,
+      resultat: { actif: false, deconnecte: true },
+    })
+    expect(fetch).not.toHaveBeenCalled()
+    expect(injections()).toEqual([])
+    expect(chrome.storage.session.donnees).toEqual({})
+  })
+
+  it('activation sur une page où l’extension ne peut pas s’exécuter : l’onglet reste activé, sans erreur', async () => {
+    fetch.mockResolvedValueOnce(reponse(200, API_LISTE))
+    chrome.scripting.executeScript.mockRejectedValueOnce(new Error('Cannot access contents of the page'))
+
+    expect(await envoyer({ type: 'changerOnglet', ongletId: 3, actif: true })).toEqual({ ok: true, resultat: { actif: true } })
+    expect(messagesPage()).toEqual([])
+  })
+
+  it('désactivation : retire le surlignage, oublie l’onglet et sa liste, sans appel à l’API', async () => {
+    Object.assign(chrome.storage.session.donnees, { 'onglet-3': true, 'liste-3': LISTE })
+
+    expect(await envoyer({ type: 'changerOnglet', ongletId: 3, actif: false })).toEqual({ ok: true, resultat: { actif: false } })
+
+    expect(messagesPage()).toEqual([[3, { type: 'retirer' }]])
+    expect(chrome.storage.session.donnees).toEqual({})
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('nouvelle page d’un onglet activé : surlignée avec la liste gardée, sans appel à l’API', async () => {
+    Object.assign(chrome.storage.session.donnees, { 'onglet-3': true, 'liste-3': LISTE })
+    const chargement = chrome.tabs.onUpdated.addListener.mock.calls[0][0]
+
+    await chargement(3, { status: 'loading' })
+    expect(injections()).toEqual([])
+
+    await chargement(3, { status: 'complete' })
+    expect(injections()).toEqual([{ target: { tabId: 3 }, files: ['lib/correspondance.js', 'contenu.js'] }])
+    expect(messagesPage()).toEqual([[3, { type: 'surligner', liste: LISTE }]])
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('nouvelle page d’un onglet désactivé : aucun script, aucun appel à l’API (règle 2)', async () => {
+    const chargement = chrome.tabs.onUpdated.addListener.mock.calls[0][0]
+
+    await chargement(4, { status: 'complete' })
+
+    expect(injections()).toEqual([])
+    expect(messagesPage()).toEqual([])
+    expect(fetch).not.toHaveBeenCalled()
+    expect(chrome.storage.local.get).not.toHaveBeenCalled()
+  })
+
+  it('nouvelle page d’un onglet resté activé après l’expiration de la session : rien n’est surligné (activation 3)', async () => {
+    Object.assign(chrome.storage.session.donnees, { 'onglet-3': true, 'liste-3': LISTE })
+    delete chrome.storage.local.donnees.jeton
+    const chargement = chrome.tabs.onUpdated.addListener.mock.calls[0][0]
+
+    await chargement(3, { status: 'complete' })
+
+    expect(injections()).toEqual([])
+    expect(messagesPage()).toEqual([])
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('activation avec une API en erreur : erreur renvoyée, onglet non activé, rien d’injecté', async () => {
+    fetch.mockResolvedValueOnce(reponse(500))
+
+    expect(await envoyer({ type: 'changerOnglet', ongletId: 3, actif: true })).toEqual({ ok: false, erreur: 'GET /webtoons : 500' })
+    expect(chrome.storage.session.donnees).toEqual({})
+    expect(injections()).toEqual([])
+  })
+
+  it('activation avec une API injoignable : erreur renvoyée, onglet non activé, rien d’injecté', async () => {
+    fetch.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+
+    expect((await envoyer({ type: 'changerOnglet', ongletId: 3, actif: true })).ok).toBe(false)
+    expect(chrome.storage.session.donnees).toEqual({})
+    expect(injections()).toEqual([])
+  })
+
+  it('rafraîchir avec une API en erreur : la liste gardée reste la même', async () => {
+    Object.assign(chrome.storage.session.donnees, { 'onglet-3': true, 'liste-3': LISTE })
+    fetch.mockResolvedValueOnce(reponse(500))
+
+    expect((await envoyer({ type: 'rafraichir', ongletId: 3 })).ok).toBe(false)
+    expect(chrome.storage.session.donnees).toEqual({ 'onglet-3': true, 'liste-3': LISTE })
+    expect(messagesPage()).toEqual([])
+  })
+
+  it('rafraîchir : recharge la liste et surligne de nouveau', async () => {
+    Object.assign(chrome.storage.session.donnees, { 'onglet-3': true, 'liste-3': [] })
+    fetch.mockResolvedValueOnce(reponse(200, API_LISTE))
+
+    expect(await envoyer({ type: 'rafraichir', ongletId: 3 })).toEqual({ ok: true, resultat: { actif: true } })
+
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(chrome.storage.session.donnees['liste-3']).toEqual(LISTE)
+    expect(messagesPage()).toEqual([[3, { type: 'surligner', liste: LISTE }]])
+  })
+
+  it('rafraîchir un onglet désactivé ne fait rien', async () => {
+    expect(await envoyer({ type: 'rafraichir', ongletId: 3 })).toEqual({ ok: true, resultat: { actif: false } })
+    expect(fetch).not.toHaveBeenCalled()
+  })
+
+  it('déconnexion : retire le surlignage de tous les onglets activés et les désactive (règle « connexion » 6)', async () => {
+    Object.assign(chrome.storage.session.donnees, { 'onglet-3': true, 'liste-3': LISTE, 'onglet-5': true, 'liste-5': LISTE })
+
+    await envoyer({ type: 'deconnexion' })
+
+    expect(messagesPage()).toEqual([
+      [3, { type: 'retirer' }],
+      [5, { type: 'retirer' }],
+    ])
+    expect(chrome.storage.session.donnees).toEqual({})
+    expect(chrome.storage.local.donnees).toEqual({})
   })
 })

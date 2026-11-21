@@ -28,8 +28,12 @@ export function simulerChrome({ ongletActif = { id: 7 } } = {}) {
     },
     tabs: {
       query: vi.fn(async () => (ongletActif ? [ongletActif] : [])),
+      sendMessage: vi.fn(async () => undefined),
       onRemoved: { addListener: vi.fn() },
+      onUpdated: { addListener: vi.fn() },
     },
+    scripting: { executeScript: vi.fn(async () => []) },
+    permissions: { contains: vi.fn(async () => true), request: vi.fn(async () => true) },
   }
   vi.stubGlobal('chrome', chrome)
   return chrome

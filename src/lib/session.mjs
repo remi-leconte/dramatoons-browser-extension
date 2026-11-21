@@ -42,6 +42,12 @@ export async function connecter(login, motDePasse) {
   return { ok: false, message }
 }
 
+/** Session présente, sans appel à l'API. */
+export async function estConnecte() {
+  const { jeton } = await chrome.storage.local.get('jeton')
+  return Boolean(jeton)
+}
+
 export async function deconnecter() {
   await chrome.storage.local.remove(['jeton', 'jetonRenouvellement'])
 }
