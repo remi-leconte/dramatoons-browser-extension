@@ -73,14 +73,6 @@ export async function initialiser(doc = document) {
     }
     element('motDePasse').value = ''
     await afficher()
-    // Un onglet resté activé (session expirée entre-temps) est surligné aussitôt
-    if (element('interrupteur').checked) {
-      try {
-        await appliquer(await envoyer('rafraichir', { ongletId: onglet.id }))
-      } catch {
-        erreurServeur()
-      }
-    }
   })
 
   element('deconnexion').addEventListener('click', async () => {

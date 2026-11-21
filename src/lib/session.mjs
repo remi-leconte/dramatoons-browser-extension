@@ -48,8 +48,19 @@ export async function estConnecte() {
   return Boolean(jeton)
 }
 
+let apresDeconnexion = async () => {}
+
+/**
+ * Ce qui doit suivre toute fin de session, demandée ou due à un renouvellement refusé : l'arrière-plan y retire
+ * le surlignage et désactive les onglets, pour que la liste d'un utilisateur ne serve jamais à un autre.
+ */
+export function surDeconnexion(action) {
+  apresDeconnexion = action
+}
+
 export async function deconnecter() {
   await chrome.storage.local.remove(['jeton', 'jetonRenouvellement'])
+  await apresDeconnexion()
 }
 
 /**

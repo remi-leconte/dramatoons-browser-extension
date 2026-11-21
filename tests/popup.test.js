@@ -304,26 +304,15 @@ describe('connexion depuis la fenêtre (règles « extension - connexion »)', (
     expect(element('motDePasse').value).toBe('')
   })
 
-  it('après la connexion, un onglet resté activé est surligné aussitôt (connexion 3)', async () => {
+  it('après la connexion, aucun onglet n’est surligné d’office, même affiché activé (connexion 3)', async () => {
     await initialiser()
     reponses.connexion = { ok: true }
     reponses.utilisateur = { login: 'lecteur', total: 4 }
     reponses.etatOnglet = true
-    reponses.rafraichir = { actif: true }
 
     await seConnecter('lecteur', 'secret')
 
-    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ type: 'rafraichir', ongletId: 7 })
-  })
-
-  it('après la connexion, un onglet désactivé n’est pas surligné', async () => {
-    await initialiser()
-    reponses.connexion = { ok: true }
-    reponses.utilisateur = { login: 'lecteur', total: 4 }
-
-    await seConnecter('lecteur', 'secret')
-
-    expect(chrome.runtime.sendMessage.mock.calls.some(([message]) => message.type === 'rafraichir')).toBe(false)
+    expect(chrome.runtime.sendMessage.mock.calls.some(([message]) => ['rafraichir', 'changerOnglet'].includes(message.type))).toBe(false)
   })
 
   it('une connexion refusée affiche le message, et le formulaire reste', async () => {

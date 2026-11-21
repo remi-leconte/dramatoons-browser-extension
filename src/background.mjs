@@ -1,6 +1,6 @@
 import { versListe } from './lib/liste.mjs'
 import { activerOnglet, listeOnglet, ongletActif, ongletsActifs, oublierOnglet } from './lib/onglets.mjs'
-import { connecter, deconnecter, estConnecte, requete, utilisateur } from './lib/session.mjs'
+import { connecter, deconnecter, estConnecte, requete, surDeconnexion, utilisateur } from './lib/session.mjs'
 
 /** @returns {Promise<object[] | null>} null si l'utilisateur n'est pas (ou plus) connecté */
 async function chargerListe() {
@@ -58,19 +58,22 @@ async function rafraichir(ongletId) {
   return changerOnglet(ongletId, true)
 }
 
-async function deconnexion() {
+// Fin de session, demandée ou due à un renouvellement refusé (session.mjs) : surlignage retiré et onglets
+// désactivés partout, et toute activation en cours abandonnée
+async function oublierTousLesOnglets() {
   for (const ongletId of demandes.keys()) nouvelleDemande(ongletId)
   for (const ongletId of await ongletsActifs()) {
     await oublierOnglet(ongletId)
     await retirer(ongletId)
   }
-  await deconnecter()
 }
+
+surDeconnexion(oublierTousLesOnglets)
 
 // Seul l'arrière-plan parle à l'API : un seul endroit gère les jetons et leur renouvellement
 const actions = {
   connexion: (message) => connecter(message.login, message.motDePasse),
-  deconnexion: () => deconnexion(),
+  deconnexion: () => deconnecter(),
   utilisateur: () => utilisateur(),
   etatOnglet: (message) => ongletActif(message.ongletId),
   changerOnglet: (message) => changerOnglet(message.ongletId, message.actif === true),

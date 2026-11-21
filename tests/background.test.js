@@ -207,6 +207,36 @@ describe('activation d’un onglet (règles « extension - activation » et « l
     expect(messagesPage()).toEqual([])
   })
 
+  it('session expirée (renouvellement refusé) : comme une déconnexion, surlignage retiré et onglets oubliés (connexion 4 et 6)', async () => {
+    Object.assign(chrome.storage.session.donnees, { 'onglet-3': true, 'liste-3': LISTE, 'onglet-5': true, 'liste-5': LISTE })
+    fetch.mockResolvedValueOnce(reponse(401)).mockResolvedValueOnce(reponse(401))
+
+    expect(await envoyer({ type: 'utilisateur' })).toEqual({ ok: true, resultat: null })
+
+    expect(messagesPage()).toEqual([
+      [3, { type: 'retirer' }],
+      [5, { type: 'retirer' }],
+    ])
+    expect(chrome.storage.session.donnees).toEqual({})
+  })
+
+  it('reconnexion avec un autre compte après une session expirée : la liste du précédent ne s’affiche jamais', async () => {
+    Object.assign(chrome.storage.session.donnees, { 'onglet-3': true, 'liste-3': LISTE })
+    fetch
+      .mockResolvedValueOnce(reponse(401))
+      .mockResolvedValueOnce(reponse(401))
+      .mockResolvedValueOnce(reponse(200, { token: 'jeton-autre', refresh_token: 'renouvellement-autre' }))
+    await envoyer({ type: 'utilisateur' })
+    await envoyer({ type: 'connexion', login: 'autre', motDePasse: 'secret' })
+    chrome.tabs.sendMessage.mockClear()
+    const chargement = chrome.tabs.onUpdated.addListener.mock.calls[0][0]
+
+    await chargement(3, { status: 'complete' })
+
+    expect(messagesPage()).toEqual([])
+    expect(await envoyer({ type: 'etatOnglet', ongletId: 3 })).toEqual({ ok: true, resultat: false })
+  })
+
   it('rafraîchir : recharge la liste et surligne de nouveau', async () => {
     Object.assign(chrome.storage.session.donnees, { 'onglet-3': true, 'liste-3': [] })
     fetch.mockResolvedValueOnce(reponse(200, API_LISTE))
