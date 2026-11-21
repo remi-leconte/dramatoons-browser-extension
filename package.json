@@ -9,6 +9,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "devDependencies": {
+    "happy-dom": "^21.0.4",
     "vitest": "^5.1.1",
     "web-ext": "^10.8.0"
   }
