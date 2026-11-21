@@ -4,6 +4,7 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { Script } from 'node:vm'
+import { SCRIPTS_INJECTES } from '../src/lib/scripts-injectes.mjs'
 
 const source = 'src'
 const erreurs = []
@@ -49,7 +50,11 @@ const fichiersJs = (dossier) =>
 // node --check lirait les .js comme des modules (`"type": "module"` de package.json) et laisserait passer un `import`
 // qui casserait l'extension : ils sont donc vérifiés comme des scripts classiques. Seul l'arrière-plan déclaré
 // `"type": "module"` peut être un .js chargé en module
-const scriptsDeContenu = (manifeste.content_scripts ?? []).flatMap((script) => script.js ?? [])
+// Scripts de contenu : ceux du manifeste et ceux que l'arrière-plan injecte lui-même
+const scriptsDeContenu = [...(manifeste.content_scripts ?? []).flatMap((script) => script.js ?? []), ...SCRIPTS_INJECTES]
+for (const fichier of SCRIPTS_INJECTES) {
+  if (!existsSync(join(source, fichier))) erreurs.push(`script injecté absent : ${fichier}`)
+}
 const arrierePlan = [manifeste.background?.service_worker, ...(manifeste.background?.scripts ?? [])].filter(Boolean)
 for (const fichier of [...scriptsDeContenu, ...(manifeste.background?.type === 'module' ? [] : arrierePlan)]) {
   if (fichier.endsWith('.mjs')) erreurs.push(`${fichier} est un module (.mjs), mais le navigateur le charge comme script classique`)
