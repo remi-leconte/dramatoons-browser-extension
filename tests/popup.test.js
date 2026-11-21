@@ -111,6 +111,47 @@ describe('fenêtre (règles « extension - fenêtre »)', () => {
     expect(element('ligneRafraichir').hidden).toBe(true)
   })
 
+  it('pendant une activation, l’interrupteur et « Rafraîchir » attendent la réponse', async () => {
+    reponses.utilisateur = { login: 'lecteur', total: 1 }
+    let repondre
+    reponses.changerOnglet = () => new Promise((resoudre) => (repondre = resoudre))
+    await initialiser()
+
+    element('interrupteur').checked = true
+    element('interrupteur').dispatchEvent(new Event('change'))
+    await attendre()
+
+    expect(element('interrupteur').disabled).toBe(true)
+    expect(element('rafraichir').disabled).toBe(true)
+
+    repondre({ actif: true })
+    await attendre()
+
+    expect(element('interrupteur').disabled).toBe(false)
+    expect(element('rafraichir').disabled).toBe(false)
+  })
+
+  it('pendant un rafraîchissement, l’interrupteur et « Rafraîchir » attendent la réponse', async () => {
+    reponses.utilisateur = { login: 'lecteur', total: 1 }
+    reponses.etatOnglet = true
+    let repondre
+    reponses.rafraichir = () => new Promise((resoudre) => (repondre = resoudre))
+    await initialiser()
+
+    element('rafraichir').click()
+    await attendre()
+
+    expect(element('interrupteur').disabled).toBe(true)
+    expect(element('rafraichir').disabled).toBe(true)
+
+    repondre({ actif: true })
+    await attendre()
+    await attendre()
+
+    expect(element('interrupteur').disabled).toBe(false)
+    expect(element('rafraichir').disabled).toBe(false)
+  })
+
   it('une activation avec une session expirée ramène au formulaire de connexion', async () => {
     reponses.utilisateur = { login: 'lecteur', total: 1 }
     await initialiser()

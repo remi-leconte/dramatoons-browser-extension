@@ -28,8 +28,18 @@ async function retirer(ongletId) {
   }
 }
 
+// Dernière demande de chaque onglet : le chargement de la liste peut durer, et une désactivation ou une
+// déconnexion arrivée entre-temps doit l'emporter sur l'activation en cours
+const demandes = new Map()
+const nouvelleDemande = (ongletId) => {
+  const numero = (demandes.get(ongletId) ?? 0) + 1
+  demandes.set(ongletId, numero)
+  return numero
+}
+
 /** Active (liste chargée puis page surlignée) ou désactive un onglet. */
 async function changerOnglet(ongletId, actif) {
+  const demande = nouvelleDemande(ongletId)
   if (!actif) {
     await oublierOnglet(ongletId)
     await retirer(ongletId)
@@ -37,6 +47,7 @@ async function changerOnglet(ongletId, actif) {
   }
   const liste = await chargerListe()
   if (!liste) return { actif: false, deconnecte: true }
+  if (demandes.get(ongletId) !== demande || !(await estConnecte())) return { actif: await ongletActif(ongletId) }
   await activerOnglet(ongletId, liste)
   await surligner(ongletId, liste)
   return { actif: true }
@@ -48,6 +59,7 @@ async function rafraichir(ongletId) {
 }
 
 async function deconnexion() {
+  for (const ongletId of demandes.keys()) nouvelleDemande(ongletId)
   for (const ongletId of await ongletsActifs()) {
     await oublierOnglet(ongletId)
     await retirer(ongletId)

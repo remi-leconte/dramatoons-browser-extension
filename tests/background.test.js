@@ -118,6 +118,34 @@ describe('activation d’un onglet (règles « extension - activation » et « l
     expect(fetch).not.toHaveBeenCalled()
   })
 
+  it('désactivation pendant le chargement de la liste : la désactivation l’emporte', async () => {
+    let repondre
+    fetch.mockReturnValueOnce(new Promise((resoudre) => (repondre = resoudre)))
+
+    const activation = envoyer({ type: 'changerOnglet', ongletId: 3, actif: true })
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalled())
+    expect(await envoyer({ type: 'changerOnglet', ongletId: 3, actif: false })).toEqual({ ok: true, resultat: { actif: false } })
+    repondre(reponse(200, API_LISTE))
+
+    expect(await activation).toEqual({ ok: true, resultat: { actif: false } })
+    expect(chrome.storage.session.donnees).toEqual({})
+    expect(injections()).toEqual([])
+  })
+
+  it('déconnexion pendant le chargement de la liste : l’onglet n’est pas activé (connexion 6, activation 3)', async () => {
+    let repondre
+    fetch.mockReturnValueOnce(new Promise((resoudre) => (repondre = resoudre)))
+
+    const activation = envoyer({ type: 'changerOnglet', ongletId: 3, actif: true })
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalled())
+    await envoyer({ type: 'deconnexion' })
+    repondre(reponse(200, API_LISTE))
+
+    expect(await activation).toEqual({ ok: true, resultat: { actif: false } })
+    expect(chrome.storage.session.donnees).toEqual({})
+    expect(injections()).toEqual([])
+  })
+
   it('nouvelle page d’un onglet activé : surlignée avec la liste gardée, sans appel à l’API', async () => {
     Object.assign(chrome.storage.session.donnees, { 'onglet-3': true, 'liste-3': LISTE })
     const chargement = chrome.tabs.onUpdated.addListener.mock.calls[0][0]

@@ -28,6 +28,7 @@ export async function initialiser(doc = document) {
   function afficherInterrupteur(actif) {
     element('interrupteur').checked = actif
     element('interrupteur').disabled = !onglet || (!acces && !actif)
+    element('rafraichir').disabled = false
     element('ligneRafraichir').hidden = !actif || !acces
   }
 
@@ -92,8 +93,16 @@ export async function initialiser(doc = document) {
     await afficher()
   })
 
+  // Pendant une activation ou un rafraîchissement (jusqu'au délai de l'API), l'interrupteur et « Rafraîchir »
+  // attendent la réponse : afficherInterrupteur() les rend ensuite selon l'état réel de l'onglet
+  function patienter() {
+    element('interrupteur').disabled = true
+    element('rafraichir').disabled = true
+  }
+
   element('interrupteur').addEventListener('change', async () => {
     const interrupteur = element('interrupteur')
+    patienter()
     try {
       await appliquer(await envoyer('changerOnglet', { ongletId: onglet.id, actif: interrupteur.checked }))
     } catch {
@@ -105,6 +114,7 @@ export async function initialiser(doc = document) {
 
   // « Rafraîchir » recharge la liste et refait le surlignage ; afficher() met à jour le nombre de webtoons
   element('rafraichir').addEventListener('click', async () => {
+    patienter()
     try {
       await appliquer(await envoyer('rafraichir', { ongletId: onglet.id }))
     } catch {
