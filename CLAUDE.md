@@ -35,7 +35,7 @@ Un `.mjs` déclaré en script de contenu, ou en arrière-plan sans `"type": "mod
 ### Relecture IA
 `.github/workflows/relecture.yml` est celui de l'API (voir « Relecture IA » dans `api/CLAUDE.md`), sur les PR vers `main` au lieu de `release/*`, avec deux différences :
 - pas de PR de synchronisation : ce dépôt n'a pas de release ;
-- les PR liées des autres dépôts sont cherchées quelle que soit leur cible, puisque l'API et le front livrent par release et l'extension par `main`.
+- les PR liées de l'API et du front sont cherchées vers n'importe quelle branche `release/*`, et non vers la cible de la PR relue (`main`). La release attendue est le champ Release du ticket, que le jeton du workflow ne peut pas lire : le relecteur vérifie, d'après les PR liées, que l'API et le front visent la même release. Les relectures de l'API et du front, elles, cherchent la PR de l'extension vers `main` et leurs PR liées vers leur propre release.
 
 Le check « Relecture IA » est obligatoire pour fusionner dans `main` (ruleset), avec les deux checks de la CI.
 
