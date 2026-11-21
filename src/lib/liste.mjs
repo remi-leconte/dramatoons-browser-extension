@@ -16,7 +16,7 @@ export function versListe(webtoons) {
       titres,
       etat: suivi.state ?? null,
       note: suivi.rate ?? null,
-      // Un chapitre 0 est un chapitre vide (règles de l'API) : rien à afficher
+      // Pas de chapitre à afficher pour un bookmark à 0 : règles métier, webtoons.md, « webtoon - base » 3
       chapitre: suivi.bookmark ? suivi.bookmark : null,
     }
   })
