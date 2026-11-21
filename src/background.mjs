@@ -1,5 +1,14 @@
 import { versListe } from './lib/liste.mjs'
-import { activerOnglet, listeOnglet, ongletActif, ongletsActifs, oublierOnglet } from './lib/onglets.mjs'
+import {
+  activerOnglet,
+  dejaSurligne,
+  listeOnglet,
+  marquerSurligne,
+  ongletActif,
+  ongletsActifs,
+  oublierMarque,
+  oublierOnglet,
+} from './lib/onglets.mjs'
 import { connecter, deconnecter, estConnecte, requete, surDeconnexion, utilisateur } from './lib/session.mjs'
 
 /** @returns {Promise<object[] | null>} null si l'utilisateur n'est pas (ou plus) connecté */
@@ -28,6 +37,7 @@ async function surligner(ongletId, liste, demande) {
     const toujoursActif = demandes.get(ongletId) === demande && (await ongletActif(ongletId)) && (await estConnecte())
     if (!toujoursActif) return
     await chrome.tabs.sendMessage(ongletId, { type: 'surligner', liste })
+    await marquerSurligne(ongletId)
   } catch {
     // rien à surligner sur cette page
   }
@@ -104,13 +114,19 @@ export function traiter(message, expediteur, repondre) {
   return true
 }
 
-// Nouvelle page dans un onglet activé : surlignée avec la liste déjà chargée, sans appel à l'API. Une session
-// expirée entre-temps (renouvellement refusé) ne surligne plus rien : l'onglet attend la reconnexion
+// Nouvelle page dans un onglet activé : surlignée avec la liste déjà chargée, sans appel à l'API.
+// Dans un onglet qui n'est plus activé (ou sans session), une page déjà surlignée peut revenir du cache de
+// navigation (« Précédent ») avec l'ancienne liste : elle reçoit « retirer », sans injection ni appel à l'API.
+// Un onglet jamais surligné ne reçoit rien
 export async function pageChargee(ongletId, changement) {
   const demande = demandes.get(ongletId)
-  if (changement.status !== 'complete' || !(await ongletActif(ongletId)) || !(await estConnecte())) return
-  const liste = await listeOnglet(ongletId)
-  if (liste) await surligner(ongletId, liste, demande)
+  if (changement.status !== 'complete') return
+  if ((await ongletActif(ongletId)) && (await estConnecte())) {
+    const liste = await listeOnglet(ongletId)
+    if (liste) await surligner(ongletId, liste, demande)
+  } else if (await dejaSurligne(ongletId)) {
+    await retirer(ongletId)
+  }
 }
 
 chrome.runtime.onMessage.addListener(traiter)
@@ -119,4 +135,5 @@ chrome.tabs.onUpdated.addListener(pageChargee)
 chrome.tabs.onRemoved.addListener(async (ongletId) => {
   demandes.delete(ongletId)
   await oublierOnglet(ongletId)
+  await oublierMarque(ongletId)
 })

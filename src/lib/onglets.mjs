@@ -22,6 +22,23 @@ export async function oublierOnglet(ongletId) {
   await chrome.storage.session.remove([cleEtat(ongletId), cleListe(ongletId)])
 }
 
+// Onglet qui a reçu une liste au moins une fois : ses pages en cache (« Précédent ») peuvent revenir surlignées.
+// La marque survit à la désactivation et ne disparaît qu'à la fermeture de l'onglet
+const cleMarque = (ongletId) => `surligne-${ongletId}`
+
+export async function marquerSurligne(ongletId) {
+  await chrome.storage.session.set({ [cleMarque(ongletId)]: true })
+}
+
+export async function dejaSurligne(ongletId) {
+  const valeurs = await chrome.storage.session.get(cleMarque(ongletId))
+  return valeurs[cleMarque(ongletId)] === true
+}
+
+export async function oublierMarque(ongletId) {
+  await chrome.storage.session.remove(cleMarque(ongletId))
+}
+
 export async function ongletsActifs() {
   const valeurs = await chrome.storage.session.get(null)
   return Object.keys(valeurs)

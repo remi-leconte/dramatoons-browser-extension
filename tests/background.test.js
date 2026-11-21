@@ -82,7 +82,7 @@ describe('activation d’un onglet (règles « extension - activation » et « l
 
     expect(fetch).toHaveBeenCalledTimes(1)
     expect(fetch.mock.calls[0][0]).toMatch(/\/webtoons\?mode=ext&pagination=false$/)
-    expect(chrome.storage.session.donnees).toEqual({ 'onglet-3': true, 'liste-3': LISTE })
+    expect(chrome.storage.session.donnees).toEqual({ 'onglet-3': true, 'liste-3': LISTE, 'surligne-3': true })
     expect(injections()).toEqual([{ target: { tabId: 3 }, files: ['lib/correspondance.js', 'contenu.js'] }])
     expect(messagesPage()).toEqual([[3, { type: 'surligner', liste: LISTE }]])
     expect(await envoyer({ type: 'etatOnglet', ongletId: 3 })).toEqual({ ok: true, resultat: true })
@@ -346,6 +346,42 @@ describe('activation d’un onglet (règles « extension - activation » et « l
 
     expect(messagesPage()).toEqual([])
     expect(await envoyer({ type: 'etatOnglet', ongletId: 3 })).toEqual({ ok: true, resultat: false })
+  })
+
+  it('page revenue du cache (« Précédent ») après une déconnexion : son surlignage est retiré (connexion 6)', async () => {
+    fetch.mockResolvedValueOnce(reponse(200, API_LISTE))
+    await envoyer({ type: 'changerOnglet', ongletId: 3, actif: true })
+    await envoyer({ type: 'deconnexion' })
+    chrome.tabs.sendMessage.mockClear()
+    chrome.scripting.executeScript.mockClear()
+    const chargement = chrome.tabs.onUpdated.addListener.mock.calls[0][0]
+
+    await chargement(3, { status: 'complete' })
+
+    expect(messagesPage()).toEqual([[3, { type: 'retirer' }]])
+    expect(injections()).toEqual([])
+  })
+
+  it('page revenue du cache après une désactivation : son surlignage est retiré (activation 5)', async () => {
+    fetch.mockResolvedValueOnce(reponse(200, API_LISTE))
+    await envoyer({ type: 'changerOnglet', ongletId: 3, actif: true })
+    await envoyer({ type: 'changerOnglet', ongletId: 3, actif: false })
+    chrome.tabs.sendMessage.mockClear()
+    const chargement = chrome.tabs.onUpdated.addListener.mock.calls[0][0]
+
+    await chargement(3, { status: 'complete' })
+
+    expect(messagesPage()).toEqual([[3, { type: 'retirer' }]])
+    expect(fetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('onglet fermé : sa marque est oubliée avec lui', async () => {
+    chrome.storage.session.donnees['surligne-3'] = true
+    const fermeture = chrome.tabs.onRemoved.addListener.mock.calls[0][0]
+
+    await fermeture(3)
+
+    expect(chrome.storage.session.donnees).toEqual({})
   })
 
   it('rafraîchir : recharge la liste et surligne de nouveau', async () => {
