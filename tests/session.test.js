@@ -120,6 +120,14 @@ describe('session (règles « extension - connexion » 4 et 5)', () => {
     expect(chrome.storage.local.donnees).toEqual({})
   })
 
+  it('déconnecte si le renouvellement ne renvoie pas de nouveau jeton de renouvellement', async () => {
+    connecte()
+    fetch.mockResolvedValueOnce(reponse(401)).mockResolvedValueOnce(reponse(200, { token: 'jeton-2' }))
+
+    expect(await utilisateur()).toBeNull()
+    expect(chrome.storage.local.donnees).toEqual({})
+  })
+
   it('déconnecte si la requête rejouée est encore refusée', async () => {
     connecte()
     fetch

@@ -96,14 +96,13 @@ function renouveler() {
       })
       if (reponse.status >= 500) throw new Error(`POST /token/refresh : ${reponse.status}`)
       const donnees = reponse.ok ? await reponse.json().catch(() => ({})) : {}
-      if (!donnees.token) {
+      // L'ancien jeton de renouvellement vient d'être consommé : sans le nouveau, la session ne pourrait plus se
+      // prolonger, la réponse vaut donc un refus
+      if (!donnees.token || !donnees.refresh_token) {
         await deconnecter()
         return null
       }
-      await chrome.storage.local.set({
-        jeton: donnees.token,
-        jetonRenouvellement: donnees.refresh_token ?? jetonRenouvellement,
-      })
+      await chrome.storage.local.set({ jeton: donnees.token, jetonRenouvellement: donnees.refresh_token })
       return donnees.token
     } finally {
       renouvellementEnCours = null
