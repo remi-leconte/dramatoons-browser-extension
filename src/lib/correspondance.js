@@ -105,9 +105,7 @@
       if (trouve) tronques.push({ ...trouve, debut: trouve.debut + debutSegment, fin: trouve.fin + debutSegment })
       debutSegment = points.index + points[0].length
     }
-    // Titres complets : à chaque début de mot, le plus long titre qui finit sur une fin de mot. Entre deux titres
-    // qui se chevauchent, même sans commencer au même endroit (« The Boxer » et « Boxer King Returns » dans
-    // « The Boxer King Returns »), le plus long l'emporte (règle 6), puis le plus à gauche
+    // Titres complets : à chaque début de mot, le plus long titre qui finit sur une fin de mot
     const { normalise, positions } = normaliser(texte)
     const candidats = []
     for (let debut = 0; debut < normalise.length; debut++) {
@@ -120,25 +118,22 @@
       })
       if (titre) candidats.push({ debut, fin: debut + titre.normalise.length, webtoon: titre.webtoon })
     }
-    candidats.sort((a, b) => b.fin - b.debut - (a.fin - a.debut) || a.debut - b.debut)
-    const occupe = new Uint8Array(normalise.length)
-    const complets = []
-    for (const candidat of candidats) {
-      if (occupe.subarray(candidat.debut, candidat.fin).some(Boolean)) continue
-      occupe.fill(1, candidat.debut, candidat.fin)
-      complets.push({ debut: positions[candidat.debut], fin: positions[candidat.fin - 1] + 1, webtoon: candidat.webtoon })
+    // Une seule sélection pour les complets et les tronqués, en positions du texte d'origine : le plus long dans la
+    // page l'emporte sur ceux qu'il chevauche (règle 6), le tronqué à égalité (il désigne un titre plus long), puis
+    // le plus à gauche ; un titre écarté par un autre lui-même écarté reste donc possible
+    const tous = [
+      ...candidats.map((c) => ({ debut: positions[c.debut], fin: positions[c.fin - 1] + 1, webtoon: c.webtoon, tronque: false })),
+      ...tronques.map((t) => ({ ...t, tronque: true })),
+    ]
+    tous.sort((a, b) => b.fin - b.debut - (a.fin - a.debut) || Number(b.tronque) - Number(a.tronque) || a.debut - b.debut)
+    const occupe = new Uint8Array(texte.length)
+    const gardes = []
+    for (const trouve of tous) {
+      if (occupe.subarray(trouve.debut, trouve.fin).some(Boolean)) continue
+      occupe.fill(1, trouve.debut, trouve.fin)
+      gardes.push({ debut: trouve.debut, fin: trouve.fin, webtoon: trouve.webtoon })
     }
-
-    // Un titre tronqué et un titre complet qui se chevauchent : le plus long dans la page l'emporte (règle 6).
-    // « Solo Leveling: Rag… » garde le tronqué, « Tower of Dreams... Again » (un titre qui contient « ... »)
-    // garde le complet ; à longueur égale, le tronqué, qui désigne un titre plus long
-    const chevauche = (a, b) => a.debut < b.fin && b.debut < a.fin
-    const longueur = (trouve) => trouve.fin - trouve.debut
-    const gardes = tronques.filter((tronque) =>
-      complets.every((complet) => !chevauche(complet, tronque) || longueur(complet) <= longueur(tronque)),
-    )
-    const restants = complets.filter((complet) => gardes.every((tronque) => !chevauche(complet, tronque)))
-    return [...restants, ...gardes].sort((a, b) => a.debut - b.debut)
+    return gardes.sort((a, b) => a.debut - b.debut)
   }
 
   globalThis.DramatoonsCorrespondance = { normaliser, preparer, chercher }

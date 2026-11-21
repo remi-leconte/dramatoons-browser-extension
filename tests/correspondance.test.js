@@ -113,6 +113,15 @@ describe('correspondance des titres (règles « extension - surlignage »)', () 
     expect(trouves('The Boxer est là', [webtoon('The Boxer'), webtoon('Boxer King Returns')])).toEqual([['The Boxer', 'The Boxer']])
   })
 
+  it('règle 6 : un titre écarté par un autre lui-même écarté reste surligné', () => {
+    const webtoons = [webtoon('Al Beta'), webtoon('Beta Gamma'), webtoon('Gamma Delta Epsilon')]
+
+    expect(trouves('Al Beta Gamma Delta Epsil…', webtoons)).toEqual([
+      ['Al Beta', 'Al Beta'],
+      ['Gamma Delta Epsil', 'Gamma Delta Epsilon'],
+    ])
+  })
+
   it('règle 1 : les titres secondaires sont cherchés comme le titre principal', () => {
     expect(trouves('Na Honjaman Level Up', [webtoon('Solo Leveling', 'Na Honjaman Level Up')])).toEqual([
       ['Na Honjaman Level Up', 'Solo Leveling'],
