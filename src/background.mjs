@@ -10,10 +10,24 @@ async function chargerListe() {
   return versListe(await reponse.json())
 }
 
-// Une page où l'extension ne peut pas s'exécuter (page interne du navigateur, store) n'est simplement pas surlignée
+// Dernière demande de chaque onglet : le chargement de la liste peut durer, et une désactivation ou une
+// déconnexion arrivée entre-temps doit l'emporter sur l'activation en cours
+const demandes = new Map()
+const nouvelleDemande = (ongletId) => {
+  const numero = (demandes.get(ongletId) ?? 0) + 1
+  demandes.set(ongletId, numero)
+  return numero
+}
+
+// Une page où l'extension ne peut pas s'exécuter (page interne du navigateur, store) n'est simplement pas surlignée.
+// Une désactivation, une déconnexion ou une fermeture arrivée pendant l'injection l'emporte : son « retirer » a pu
+// se perdre avant que la page écoute, la liste n'est donc envoyée que si l'onglet est toujours activé
 async function surligner(ongletId, liste) {
+  const demande = demandes.get(ongletId)
   try {
     await chrome.scripting.executeScript({ target: { tabId: ongletId }, files: ['lib/correspondance.js', 'contenu.js'] })
+    const toujoursActif = demandes.get(ongletId) === demande && (await ongletActif(ongletId)) && (await estConnecte())
+    if (!toujoursActif) return
     await chrome.tabs.sendMessage(ongletId, { type: 'surligner', liste })
   } catch {
     // rien à surligner sur cette page
@@ -26,15 +40,6 @@ async function retirer(ongletId) {
   } catch {
     // page sans script de surlignage (déjà changée, ou jamais surlignée)
   }
-}
-
-// Dernière demande de chaque onglet : le chargement de la liste peut durer, et une désactivation ou une
-// déconnexion arrivée entre-temps doit l'emporter sur l'activation en cours
-const demandes = new Map()
-const nouvelleDemande = (ongletId) => {
-  const numero = (demandes.get(ongletId) ?? 0) + 1
-  demandes.set(ongletId, numero)
-  return numero
 }
 
 /** Active (liste chargée puis page surlignée) ou désactive un onglet. */
@@ -103,4 +108,8 @@ export async function pageChargee(ongletId, changement) {
 
 chrome.runtime.onMessage.addListener(traiter)
 chrome.tabs.onUpdated.addListener(pageChargee)
-chrome.tabs.onRemoved.addListener((ongletId) => oublierOnglet(ongletId))
+// Onglet fermé : une activation en cours pour lui n'enregistre rien (sa demande n'existe plus)
+chrome.tabs.onRemoved.addListener(async (ongletId) => {
+  demandes.delete(ongletId)
+  await oublierOnglet(ongletId)
+})

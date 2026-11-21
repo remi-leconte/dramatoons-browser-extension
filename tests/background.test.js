@@ -146,6 +146,51 @@ describe('activation d’un onglet (règles « extension - activation » et « l
     expect(injections()).toEqual([])
   })
 
+  it('déconnexion pendant l’injection du surlignage : la liste n’est pas envoyée à la page', async () => {
+    fetch.mockResolvedValueOnce(reponse(200, API_LISTE))
+    let injecte
+    chrome.scripting.executeScript.mockReturnValueOnce(new Promise((resoudre) => (injecte = resoudre)))
+
+    const activation = envoyer({ type: 'changerOnglet', ongletId: 3, actif: true })
+    await vi.waitFor(() => expect(chrome.scripting.executeScript).toHaveBeenCalled())
+    await envoyer({ type: 'deconnexion' })
+    injecte([])
+    await activation
+
+    expect(messagesPage().filter(([, message]) => message.type === 'surligner')).toEqual([])
+    expect(chrome.storage.session.donnees).toEqual({})
+  })
+
+  it('désactivation pendant l’injection d’une nouvelle page : la liste n’est pas envoyée à la page', async () => {
+    Object.assign(chrome.storage.session.donnees, { 'onglet-3': true, 'liste-3': LISTE })
+    let injecte
+    chrome.scripting.executeScript.mockReturnValueOnce(new Promise((resoudre) => (injecte = resoudre)))
+    const chargement = chrome.tabs.onUpdated.addListener.mock.calls[0][0]
+
+    const page = chargement(3, { status: 'complete' })
+    await vi.waitFor(() => expect(chrome.scripting.executeScript).toHaveBeenCalled())
+    await envoyer({ type: 'changerOnglet', ongletId: 3, actif: false })
+    injecte([])
+    await page
+
+    expect(messagesPage()).toEqual([[3, { type: 'retirer' }]])
+  })
+
+  it('onglet fermé pendant le chargement de sa liste : rien n’est enregistré pour lui', async () => {
+    let repondre
+    fetch.mockReturnValueOnce(new Promise((resoudre) => (repondre = resoudre)))
+    const fermeture = chrome.tabs.onRemoved.addListener.mock.calls[0][0]
+
+    const activation = envoyer({ type: 'changerOnglet', ongletId: 3, actif: true })
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalled())
+    await fermeture(3)
+    repondre(reponse(200, API_LISTE))
+
+    expect(await activation).toEqual({ ok: true, resultat: { actif: false } })
+    expect(chrome.storage.session.donnees).toEqual({})
+    expect(injections()).toEqual([])
+  })
+
   it('nouvelle page d’un onglet activé : surlignée avec la liste gardée, sans appel à l’API', async () => {
     Object.assign(chrome.storage.session.donnees, { 'onglet-3': true, 'liste-3': LISTE })
     const chargement = chrome.tabs.onUpdated.addListener.mock.calls[0][0]
