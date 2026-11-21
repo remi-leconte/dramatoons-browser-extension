@@ -21,7 +21,7 @@ docker compose run --rm node npm test      # tests Vitest
 ## CI
 `.github/workflows/ci.yml` tourne sur chaque PR vers `main`. Deux checks, obligatoires pour fusionner, avec la relecture IA :
 - **Vérifications** : `npm ci`, puis `npm run ci`, qui enchaîne :
-  1. `scripts/verifier.mjs` : `manifest.json` est un JSON valide, sa version est celle de `package.json`, chaque fichier qu'il référence (icônes, fenêtre, scripts) existe, et chaque fichier JS de `src/`, `scripts/` et `tests/` a une syntaxe valide. `web-ext lint` ne suit que les règles de Firefox : ce script couvre aussi ce qui ne sert qu'à Chromium ;
+  1. `scripts/verifier.mjs` : `manifest.json` est un JSON valide, sa version est celle de `package.json`, chaque fichier qu'il référence (icônes, fenêtre, scripts) existe, et chaque fichier JS a une syntaxe valide. Le navigateur charge les `.js` de `src/` comme des scripts classiques : ils sont vérifiés ainsi, et un `import` ou un `await` hors fonction y est une erreur. Les `.mjs` de `src/`, un arrière-plan déclaré `"type": "module"` dans le manifeste, et tout le JS de `scripts/` et `tests/` sont vérifiés comme des modules. `web-ext lint` ne suit que les règles de Firefox : ce script couvre aussi ce qui ne sert qu'à Chromium ;
   2. `web-ext lint` sur `src/`, avertissements compris : le validateur de Mozilla, le même que celui du store.
 - **Tests** : `npm ci`, puis `npm test`.
 

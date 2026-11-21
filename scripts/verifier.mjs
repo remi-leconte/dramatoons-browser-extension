@@ -3,6 +3,7 @@
 import { execFileSync } from 'node:child_process'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { Script } from 'node:vm'
 
 const source = 'src'
 const erreurs = []
@@ -44,7 +45,26 @@ const fichiersJs = (dossier) =>
     return /\.m?js$/.test(entree.name) ? [chemin] : []
   })
 
-for (const fichier of [...fichiersJs(source), ...fichiersJs('scripts'), ...fichiersJs('tests')]) {
+// Le navigateur charge les .js de src/ comme des scripts classiques : node --check les lirait comme des modules
+// (`"type": "module"` de package.json), et laisserait passer un `import` qui casserait l'extension.
+// Seuls les .mjs et un arrière-plan déclaré `"type": "module"` sont des modules
+const modules = new Set(
+  manifeste.background?.type === 'module'
+    ? [manifeste.background.service_worker, ...(manifeste.background.scripts ?? [])].filter(Boolean).map((f) => join(source, f))
+    : [],
+)
+
+for (const fichier of fichiersJs(source)) {
+  if (fichier.endsWith('.mjs') || modules.has(fichier)) continue
+  try {
+    new Script(readFileSync(fichier, 'utf8'), { filename: fichier })
+  } catch (erreur) {
+    erreurs.push(`syntaxe invalide dans ${fichier} (script classique) : ${erreur.message}`)
+  }
+}
+
+const fichiersModules = [...fichiersJs(source).filter((f) => f.endsWith('.mjs') || modules.has(f)), ...fichiersJs('scripts'), ...fichiersJs('tests')]
+for (const fichier of fichiersModules) {
   try {
     execFileSync(process.execPath, ['--check', fichier], { stdio: 'pipe' })
   } catch (erreur) {
