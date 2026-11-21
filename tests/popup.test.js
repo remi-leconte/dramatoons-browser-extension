@@ -177,6 +177,22 @@ describe('fenêtre (règles « extension - fenêtre »)', () => {
 
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ type: 'rafraichir', ongletId: 7 })
     expect(element('total').textContent).toBe('2')
+    // Un seul GET /me après le clic : celui de l'ouverture, puis celui qui suit le rafraîchissement
+    expect(chrome.runtime.sendMessage.mock.calls.filter(([message]) => message.type === 'utilisateur')).toHaveLength(2)
+  })
+
+  it('« Rafraîchir » avec une session expirée ramène au formulaire, en un seul appel à l’API', async () => {
+    reponses.utilisateur = { login: 'lecteur', total: 1 }
+    reponses.etatOnglet = true
+    reponses.rafraichir = { actif: false, deconnecte: true }
+    await initialiser()
+    reponses.utilisateur = null
+
+    element('rafraichir').click()
+    await attendre()
+
+    expect(visibles()).toEqual(['deconnecte'])
+    expect(chrome.runtime.sendMessage.mock.calls.filter(([message]) => message.type === 'utilisateur')).toHaveLength(2)
   })
 
   it('« Rafraîchir » sans réponse de l’arrière-plan affiche l’erreur', async () => {

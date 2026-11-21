@@ -106,11 +106,12 @@ export async function initialiser(doc = document) {
     }
   })
 
-  // « Rafraîchir » recharge la liste et refait le surlignage ; afficher() met à jour le nombre de webtoons
+  // « Rafraîchir » recharge la liste et refait le surlignage ; afficher() relit ensuite la session, le nombre de
+  // webtoons et l'état de l'onglet (une session expirée y ramène au formulaire)
   element('rafraichir').addEventListener('click', async () => {
     patienter()
     try {
-      await appliquer(await envoyer('rafraichir', { ongletId: onglet.id }))
+      await envoyer('rafraichir', { ongletId: onglet.id })
     } catch {
       erreurServeur()
       return
