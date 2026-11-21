@@ -105,10 +105,7 @@
       if (trouve) tronques.push({ ...trouve, debut: trouve.debut + debutSegment, fin: trouve.fin + debutSegment })
       debutSegment = points.index + points[0].length
     }
-    const libre = (debut, fin) => tronques.every((tronque) => fin <= tronque.debut || debut >= tronque.fin)
-
-    // Titres complets, hors des titres tronqués (un titre peut contenir « ... ») : à chaque début de mot,
-    // le plus long titre qui finit sur une fin de mot
+    // Titres complets : à chaque début de mot, le plus long titre qui finit sur une fin de mot
     const { normalise, positions } = normaliser(texte)
     const complets = []
     let curseur = 0
@@ -120,14 +117,21 @@
         const fin = debut + titre.normalise.length
         if (fin < normalise.length && normalise[fin] !== ' ') continue
         if (!normalise.startsWith(titre.normalise, debut)) continue
-        const trouve = { debut: positions[debut], fin: positions[fin - 1] + 1, webtoon: titre.webtoon }
-        if (!libre(trouve.debut, trouve.fin)) continue
-        complets.push(trouve)
+        complets.push({ debut: positions[debut], fin: positions[fin - 1] + 1, webtoon: titre.webtoon })
         curseur = fin
         break
       }
     }
-    return [...complets, ...tronques].sort((a, b) => a.debut - b.debut)
+    // Un titre tronqué et un titre complet qui se chevauchent : le plus long dans la page l'emporte (règle 6).
+    // « Solo Leveling: Rag… » garde le tronqué, « Tower of Dreams... Again » (un titre qui contient « ... »)
+    // garde le complet ; à longueur égale, le tronqué, qui désigne un titre plus long
+    const chevauche = (a, b) => a.debut < b.fin && b.debut < a.fin
+    const longueur = (trouve) => trouve.fin - trouve.debut
+    const gardes = tronques.filter((tronque) =>
+      complets.every((complet) => !chevauche(complet, tronque) || longueur(complet) <= longueur(tronque)),
+    )
+    const restants = complets.filter((complet) => gardes.every((tronque) => !chevauche(complet, tronque)))
+    return [...restants, ...gardes].sort((a, b) => a.debut - b.debut)
   }
 
   globalThis.DramatoonsCorrespondance = { normaliser, preparer, chercher }

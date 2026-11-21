@@ -112,6 +112,12 @@ describe('correspondance des titres (règles « extension - surlignage »)', () 
     ])
   })
 
+  it('un titre qui contient « ... » après 10 lettres l’emporte sur le titre tronqué qu’il contient (règle 6)', () => {
+    expect(trouves('Tower of Dreams... Again', [webtoon('Tower of Dreams... Again')])).toEqual([
+      ['Tower of Dreams... Again', 'Tower of Dreams... Again'],
+    ])
+  })
+
   it('un très long texte d’un seul bloc (roman, fichier texte) est parcouru en un temps linéaire', () => {
     const webtoons = Array.from({ length: 300 }, (_, i) => webtoon(`Webtoon numéro ${i} du test`))
     const texte = `${'mot '.repeat(50_000)}Webtoon numéro 12 du test, puis Webtoon numéro 7…`
