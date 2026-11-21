@@ -5,10 +5,11 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "ci": "node scripts/verifier.mjs && web-ext lint --source-dir src --warnings-as-errors",
+    "ci": "node scripts/verifier.mjs && node scripts/lint-firefox.mjs",
     "test": "vitest run --passWithNoTests"
   },
   "devDependencies": {
+    "happy-dom": "^21.0.4",
     "vitest": "^5.1.1",
     "web-ext": "^10.8.0"
   }

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Dramatoons Highlighter</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+
+<a href="https://dramatoons.ovh" target="_blank" rel="noopener" class="header-link">
+  <div class="header-card">
+    <img src="icons/dramatoons_48.png" alt="Logo">
+    <div class="header-title">Dramatoons</div>
+  </div>
+</a>
+
+<div id="erreurServeur" class="card error-msg" hidden></div>
+
+<div id="deconnecte" class="card" hidden>
+  <form id="formulaireConnexion">
+    <div class="form-group">
+      <label for="login">Login</label>
+      <input type="text" id="login" autocomplete="username" required>
+    </div>
+    <div class="form-group">
+      <label for="motDePasse">Mot de passe</label>
+      <input type="password" id="motDePasse" autocomplete="current-password" required>
+    </div>
+    <button type="submit" class="btn-login">Se connecter</button>
+    <div id="erreurConnexion" class="error-msg" hidden></div>
+  </form>
+</div>
+
+<div id="connecte" class="card" hidden>
+  <div class="stats">
+    <div class="stats-row">
+      <div class="stats-label">Utilisateur :</div>
+      <div class="stats-value" id="utilisateur"></div>
+    </div>
+    <div class="stats-row">
+      <div class="stats-label">Webtoons suivis :</div>
+      <div class="stats-value" id="total"></div>
+    </div>
+  </div>
+
+  <div class="controls-row">
+    <label class="label" for="interrupteur">Extension activée :</label>
+    <input type="checkbox" id="interrupteur">
+  </div>
+
+  <button type="button" id="deconnexion" class="btn-logout">Déconnexion</button>
+</div>
+
+<script type="module" src="popup.mjs"></script>
+</body>
+</html>

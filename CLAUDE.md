@@ -22,14 +22,22 @@ Convention des fichiers JS de `src/`, vérifiée par la CI :
 Un `.mjs` déclaré en script de contenu, ou en arrière-plan sans `"type": "module"`, fait échouer la CI.
 
 - `src/` : l'extension telle qu'elle est chargée par le navigateur, `manifest.json` à la racine. Seul ce dossier est livré.
-- `scripts/verifier.mjs` : vérifications propres au projet (voir « CI »).
-- `tests/` : tests Vitest (`*.test.js`).
+  - `manifest.json` : l'arrière-plan est déclaré pour les deux navigateurs, `service_worker` pour Chrome et Edge, `scripts` pour Firefox ; chacun ignore la clé de l'autre. Permissions : `storage`, et l'accès à l'API de production et à celle du dev (`127.0.0.1:8081`). Déclaration de collecte de données pour Firefox (`data_collection_permissions`) : `authenticationInfo`, car l'extension transmet le login et le mot de passe à l'API de Dramatoons et en garde les jetons ; elle ne transmet rien d'autre, et rien à un tiers.
+  - `config.mjs` : `API_URL`, versionné avec l'adresse de l'API du dev (voir la construction du zip, ci-dessous).
+  - `background.mjs` : l'arrière-plan, seul à appeler l'API. Il répond aux messages de la fenêtre (`chrome.runtime.sendMessage({ type, … })`, réponse `{ ok, resultat }` ou `{ ok: false, erreur }`) : `connexion`, `deconnexion`, `utilisateur`, `etatOnglet`, `changerOnglet`. Il ignore les messages d'une autre extension.
+  - `lib/session.mjs` : connexion (`POST /login`), jetons dans `storage.local` (gardés à la fermeture du navigateur), requêtes authentifiées avec un seul renouvellement à la fois (`/token/refresh`, jeton à usage unique), déconnexion si le renouvellement est refusé ou ne renvoie pas de nouveau `refresh_token` (pas sur une panne réseau, une API en erreur, 5xx, ni un délai dépassé). Chaque appel à l'API a un délai maximal de 10 secondes (`DELAI_API_MS`), au-delà duquel il échoue comme une panne réseau.
+  - `lib/onglets.mjs` : état de l'interrupteur de chaque onglet, dans `storage.session`, qui survit à la mise en veille de l'arrière-plan de Chrome ; oublié à la fermeture de l'onglet.
+  - `popup.html`, `popup.css`, `popup.mjs` : la fenêtre de l'extension.
+- `scripts/` : `verifier.mjs` et `lint-firefox.mjs`, vérifications de la CI (voir « CI »).
+- `tests/` : tests Vitest (`*.test.js`). `chrome-simule.js` remplace l'API `chrome` du navigateur (stockages en mémoire) ; les tests de la fenêtre tournent dans `happy-dom`.
+
+La construction du zip de production n'existe pas encore : elle viendra avec son propre ticket (script `build.sh`). Elle remplacera `API_URL` par l'adresse de l'API de production et retirera du manifeste l'accès à l'API du dev (`127.0.0.1:8081`), pour que la version publiée n'ait que les permissions nécessaires. D'ici là, aucun zip ne se publie depuis `src/`.
 
 ## CI
 `.github/workflows/ci.yml` tourne sur chaque PR vers `main`. Deux checks, obligatoires pour fusionner, avec la relecture IA :
 - **Vérifications** : `npm ci`, puis `npm run ci`, qui enchaîne :
   1. `scripts/verifier.mjs` : `manifest.json` est un JSON valide, sa version est celle de `package.json`, chaque fichier qu'il référence (icônes, fenêtre, scripts) existe, et chaque fichier JS a une syntaxe valide, selon la convention de la section « Organisation ». Le JS de `scripts/` et `tests/` est vérifié comme module. `web-ext lint` ne suit que les règles de Firefox : ce script couvre aussi ce qui ne sert qu'à Chromium ;
-  2. `web-ext lint` sur `src/`, avertissements compris : le validateur de Mozilla, le même que celui du store.
+  2. `scripts/lint-firefox.mjs` : `web-ext lint` sur `src/`, le validateur de Mozilla, le même que celui du store. Toute erreur et tout avertissement font échouer la CI, sauf `BACKGROUND_SERVICE_WORKER_IGNORED` : Firefox ignore volontairement la clé `service_worker`, qui sert à Chrome et Edge.
 - **Tests** : `npm ci`, puis `npm test`.
 
 ### Relecture IA
