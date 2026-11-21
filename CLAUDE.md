@@ -14,6 +14,13 @@ docker compose run --rm node npm test      # tests Vitest
 ```
 
 ## Organisation
+Convention des fichiers JS de `src/`, vérifiée par la CI :
+- un **module** (`import`, `export`, `await` hors fonction) porte l'extension `.mjs`, y compris un fichier seulement importé par un autre ; une page HTML le charge par `<script type="module">` ;
+- un **script classique** porte l'extension `.js` : scripts de contenu (le navigateur les charge toujours ainsi) et scripts chargés par `<script>` sans `type` ;
+- seule exception : l'arrière-plan déclaré `"type": "module"` dans le manifeste est un module, même en `.js`.
+
+Un `.mjs` déclaré en script de contenu, ou en arrière-plan sans `"type": "module"`, fait échouer la CI.
+
 - `src/` : l'extension telle qu'elle est chargée par le navigateur, `manifest.json` à la racine. Seul ce dossier est livré.
 - `scripts/verifier.mjs` : vérifications propres au projet (voir « CI »).
 - `tests/` : tests Vitest (`*.test.js`).
@@ -21,7 +28,7 @@ docker compose run --rm node npm test      # tests Vitest
 ## CI
 `.github/workflows/ci.yml` tourne sur chaque PR vers `main`. Deux checks, obligatoires pour fusionner, avec la relecture IA :
 - **Vérifications** : `npm ci`, puis `npm run ci`, qui enchaîne :
-  1. `scripts/verifier.mjs` : `manifest.json` est un JSON valide, sa version est celle de `package.json`, chaque fichier qu'il référence (icônes, fenêtre, scripts) existe, et chaque fichier JS a une syntaxe valide. Le navigateur charge les `.js` de `src/` comme des scripts classiques : ils sont vérifiés ainsi, et un `import` ou un `await` hors fonction y est une erreur. Les `.mjs` de `src/`, un arrière-plan déclaré `"type": "module"` dans le manifeste, et tout le JS de `scripts/` et `tests/` sont vérifiés comme des modules. `web-ext lint` ne suit que les règles de Firefox : ce script couvre aussi ce qui ne sert qu'à Chromium ;
+  1. `scripts/verifier.mjs` : `manifest.json` est un JSON valide, sa version est celle de `package.json`, chaque fichier qu'il référence (icônes, fenêtre, scripts) existe, et chaque fichier JS a une syntaxe valide, selon la convention de la section « Organisation ». Le JS de `scripts/` et `tests/` est vérifié comme module. `web-ext lint` ne suit que les règles de Firefox : ce script couvre aussi ce qui ne sert qu'à Chromium ;
   2. `web-ext lint` sur `src/`, avertissements compris : le validateur de Mozilla, le même que celui du store.
 - **Tests** : `npm ci`, puis `npm test`.
 

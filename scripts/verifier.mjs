@@ -45,9 +45,16 @@ const fichiersJs = (dossier) =>
     return /\.m?js$/.test(entree.name) ? [chemin] : []
   })
 
-// Le navigateur charge les .js de src/ comme des scripts classiques : node --check les lirait comme des modules
-// (`"type": "module"` de package.json), et laisserait passer un `import` qui casserait l'extension.
-// Seuls les .mjs et un arrière-plan déclaré `"type": "module"` sont des modules
+// Convention du dépôt (CLAUDE.md, « Organisation ») : un module porte l'extension .mjs, un script classique l'extension .js.
+// node --check lirait les .js comme des modules (`"type": "module"` de package.json) et laisserait passer un `import`
+// qui casserait l'extension : ils sont donc vérifiés comme des scripts classiques. Seul l'arrière-plan déclaré
+// `"type": "module"` peut être un .js chargé en module
+const scriptsDeContenu = (manifeste.content_scripts ?? []).flatMap((script) => script.js ?? [])
+const arrierePlan = [manifeste.background?.service_worker, ...(manifeste.background?.scripts ?? [])].filter(Boolean)
+for (const fichier of [...scriptsDeContenu, ...(manifeste.background?.type === 'module' ? [] : arrierePlan)]) {
+  if (fichier.endsWith('.mjs')) erreurs.push(`${fichier} est un module (.mjs), mais le navigateur le charge comme script classique`)
+}
+
 const modules = new Set(
   manifeste.background?.type === 'module'
     ? [manifeste.background.service_worker, ...(manifeste.background.scripts ?? [])].filter(Boolean).map((f) => join(source, f))
