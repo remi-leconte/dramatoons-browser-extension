@@ -100,6 +100,15 @@ describe('surlignage dans la page (règles « extension - surlignage »)', () =>
     expect(document.querySelector('textarea').value).toBe('Solo')
   })
 
+  it('règle 11 : le texte d’un dessin SVG n’est pas touché', () => {
+    document.body.innerHTML = '<svg><text>Solo</text><title>Solo</title></svg><p>Solo</p>'
+    surligner([webtoon('Solo')])
+
+    expect(titres()).toHaveLength(1)
+    expect(document.querySelector('svg text').textContent).toBe('Solo')
+    expect(document.querySelector('svg text').children).toHaveLength(0)
+  })
+
   it('activation 5 : retirer le surlignage rend la page telle qu’elle était', () => {
     document.body.innerHTML = '<p>Lu : <b>The Boxer</b> et Solo hier</p>'
     const avant = document.body.innerHTML

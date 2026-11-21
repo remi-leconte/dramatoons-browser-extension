@@ -24,8 +24,12 @@
       .filter(Boolean)
       .join(' ')
 
+  const HTML = 'http://www.w3.org/1999/xhtml'
+
   function ignore(noeud) {
     for (let element = noeud.parentElement; element; element = element.parentElement) {
+      // Hors HTML (SVG, MathML), un <span> ne s'afficherait pas : le texte disparaîtrait du dessin
+      if (element.namespaceURI !== HTML) return true
       if (IGNORES.has(element.tagName) || element.isContentEditable) return true
       if (element.classList.contains(CLASSE_TITRE) || element.classList.contains(CLASSE_PASTILLE)) return true
     }
