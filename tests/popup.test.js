@@ -177,7 +177,7 @@ describe('fenêtre (règles « extension - fenêtre »)', () => {
 
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ type: 'rafraichir', ongletId: 7 })
     expect(element('total').textContent).toBe('2')
-    // Un seul GET /me après le clic : celui de l'ouverture, puis celui qui suit le rafraîchissement
+    // Un seul GET /me de plus après le clic, celui qui suit le rafraîchissement (le premier est celui de l'ouverture)
     expect(chrome.runtime.sendMessage.mock.calls.filter(([message]) => message.type === 'utilisateur')).toHaveLength(2)
   })
 
