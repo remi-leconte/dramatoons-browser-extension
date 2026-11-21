@@ -384,6 +384,22 @@ describe('activation d’un onglet (règles « extension - activation » et « l
     expect(chrome.storage.session.donnees).toEqual({})
   })
 
+  it('« Rafraîchir » en erreur pendant le chargement d’une page : la page est quand même surlignée (activation 4)', async () => {
+    Object.assign(chrome.storage.session.donnees, { 'onglet-3': true, 'liste-3': LISTE })
+    let injecte
+    chrome.scripting.executeScript.mockReturnValueOnce(new Promise((resoudre) => (injecte = resoudre)))
+    const chargement = chrome.tabs.onUpdated.addListener.mock.calls[0][0]
+
+    const page = chargement(3, { status: 'complete' })
+    await vi.waitFor(() => expect(chrome.scripting.executeScript).toHaveBeenCalled())
+    fetch.mockResolvedValueOnce(reponse(500))
+    expect((await envoyer({ type: 'rafraichir', ongletId: 3 })).ok).toBe(false)
+    injecte([])
+    await page
+
+    expect(messagesPage()).toEqual([[3, { type: 'surligner', liste: LISTE }]])
+  })
+
   it('rafraîchir : recharge la liste et surligne de nouveau', async () => {
     Object.assign(chrome.storage.session.donnees, { 'onglet-3': true, 'liste-3': [] })
     fetch.mockResolvedValueOnce(reponse(200, API_LISTE))
