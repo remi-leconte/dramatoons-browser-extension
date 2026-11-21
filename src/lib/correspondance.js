@@ -9,25 +9,33 @@
    * caractère obtenu dans le texte d'origine.
    */
   function normaliser(texte) {
-    let normalise = ''
+    const caracteres = []
     const positions = []
+    let espace = false
+    const ajouter = (lettre, position) => {
+      if (espace && caracteres.length > 0) {
+        caracteres.push(' ')
+        positions.push(position)
+      }
+      espace = false
+      caracteres.push(lettre)
+      positions.push(position)
+    }
     for (let i = 0; i < texte.length; i++) {
-      const lettres = texte[i].normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
-      for (const lettre of lettres) {
-        if (/[\p{L}\p{N}]/u.test(lettre)) {
-          normalise += lettre
-          positions.push(i)
-        } else if (normalise.length > 0 && !normalise.endsWith(' ')) {
-          normalise += ' '
-          positions.push(i)
-        }
+      const code = texte.charCodeAt(i)
+      // Chemin rapide pour l'ASCII, l'essentiel d'une page : la décomposition Unicode coûte cher sur un long texte
+      if (code < 128) {
+        if ((code >= 97 && code <= 122) || (code >= 48 && code <= 57)) ajouter(texte[i], i)
+        else if (code >= 65 && code <= 90) ajouter(String.fromCharCode(code + 32), i)
+        else espace = true
+        continue
+      }
+      for (const lettre of texte[i].normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()) {
+        if (/[\p{L}\p{N}]/u.test(lettre)) ajouter(lettre, i)
+        else espace = true
       }
     }
-    if (normalise.endsWith(' ')) {
-      normalise = normalise.slice(0, -1)
-      positions.pop()
-    }
-    return { normalise, positions }
+    return { normalise: caracteres.join(''), positions }
   }
 
   /**
@@ -50,7 +58,8 @@
       if (!parPremierMot.has(premierMot)) parPremierMot.set(premierMot, [])
       parPremierMot.get(premierMot).push(titre)
     }
-    return { titres, parPremierMot }
+    const longueurMax = titres.length > 0 ? titres[0].normalise.length : 0
+    return { titres, parPremierMot, longueurMax }
   }
 
   const ordreAlphabetique = (a, b) => a.titrePrincipal.localeCompare(b.titrePrincipal, 'fr', { sensitivity: 'base' })
@@ -61,7 +70,9 @@
    */
   function chercherTronque(segment, prepares) {
     const { normalise, positions } = normaliser(segment)
-    for (let debut = 0; debut < normalise.length; debut++) {
+    // Un extrait plus long que le plus long titre ne peut pas en être le début : seule la fin d'un long segment
+    // est examinée, ce qui garde la recherche linéaire sur un texte de plusieurs milliers de mots
+    for (let debut = Math.max(0, normalise.length - prepares.longueurMax); debut < normalise.length; debut++) {
       if (debut > 0 && normalise[debut - 1] !== ' ') continue
       const extrait = normalise.slice(debut)
       if (extrait.replaceAll(' ', '').length < LETTRES_MIN_TRONQUE) return null
@@ -103,7 +114,8 @@
     let curseur = 0
     for (let debut = 0; debut < normalise.length; debut++) {
       if (debut < curseur || (debut > 0 && normalise[debut - 1] !== ' ')) continue
-      const premierMot = normalise.slice(debut).split(' ')[0]
+      const espace = normalise.indexOf(' ', debut)
+      const premierMot = normalise.slice(debut, espace === -1 ? normalise.length : espace)
       for (const titre of prepares.parPremierMot.get(premierMot) ?? []) {
         const fin = debut + titre.normalise.length
         if (fin < normalise.length && normalise[fin] !== ' ') continue

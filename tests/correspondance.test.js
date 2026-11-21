@@ -112,6 +112,21 @@ describe('correspondance des titres (règles « extension - surlignage »)', () 
     ])
   })
 
+  it('un très long texte d’un seul bloc (roman, fichier texte) est parcouru en un temps linéaire', () => {
+    const webtoons = Array.from({ length: 300 }, (_, i) => webtoon(`Webtoon numéro ${i} du test`))
+    const texte = `${'mot '.repeat(50_000)}Webtoon numéro 12 du test, puis Webtoon numéro 7…`
+
+    const debut = performance.now()
+    const resultat = trouves(texte, webtoons)
+    const duree = performance.now() - debut
+
+    expect(resultat).toEqual([
+      ['Webtoon numéro 12 du test', 'Webtoon numéro 12 du test'],
+      ['Webtoon numéro 7', 'Webtoon numéro 7 du test'],
+    ])
+    expect(duree).toBeLessThan(1000)
+  })
+
   it('un texte sans titre de la bibliothèque ne donne rien', () => {
     expect(trouves('Rien à voir ici…', [webtoon('Solo Leveling')])).toEqual([])
     expect(trouves('', [webtoon('Solo Leveling')])).toEqual([])
