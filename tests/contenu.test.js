@@ -122,6 +122,42 @@ describe('surlignage dans la page (règles « extension - surlignage »)', () =>
     expect(document.body.innerHTML).toBe(avant)
   })
 
+  it('activation 5 : le retrait remet les nœuds de texte d’origine eux-mêmes, sans fusionner leurs voisins', () => {
+    const paragraphe = document.createElement('p')
+    const titre = document.createTextNode('The Boxer')
+    const voisin = document.createTextNode(' suite')
+    paragraphe.append(titre, voisin)
+    document.body.append(paragraphe)
+
+    surligner([webtoon('The Boxer', { note: 4 })])
+    expect(titre.isConnected).toBe(false)
+
+    recevoir({ type: 'retirer' })
+
+    expect([...paragraphe.childNodes]).toEqual([titre, voisin])
+    expect(titre.nodeValue).toBe('The Boxer')
+  })
+
+  it('activation 5 : un texte surligné que la page a retiré entre-temps n’est pas remis', () => {
+    document.body.innerHTML = '<p id="a">The Boxer</p>'
+    surligner([webtoon('The Boxer')])
+    document.getElementById('a').remove()
+
+    recevoir({ type: 'retirer' })
+
+    expect(document.body.innerHTML).toBe('')
+  })
+
+  it('activation 5 : si la page a retiré une partie des morceaux, le texte d’origine reprend leur place', () => {
+    document.body.innerHTML = '<p>Lu : The Boxer hier</p>'
+    surligner([webtoon('The Boxer')])
+    document.querySelector('p').firstChild.remove()
+
+    recevoir({ type: 'retirer' })
+
+    expect(document.querySelector('p').textContent).toBe('Lu : The Boxer hier')
+  })
+
   it('liste 3 : surligner de nouveau (rafraîchir) ne double rien et suit la nouvelle liste', () => {
     document.body.innerHTML = '<p>The Boxer</p>'
     surligner([webtoon('The Boxer', { note: 4 })])

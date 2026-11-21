@@ -14,6 +14,10 @@
   const CLASSE_PASTILLE = 'dramatoons-pastille'
   const IGNORES = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'INPUT', 'SELECT', 'OPTION', 'TEMPLATE'])
 
+  // Chaque nœud de texte remplacé, avec ce qui l'a remplacé : le retrait remet le nœud d'origine lui-même. Un site
+  // construit par un framework (React, Vue) garde des références vers ses nœuds de texte, qui doivent rester les mêmes
+  let remplacements = []
+
   // !important : une feuille de style de la page ne doit pas rendre le surlignage illisible
   const styler = (element, styles) => {
     for (const [propriete, valeur] of Object.entries(styles)) element.style.setProperty(propriete, valeur, 'important')
@@ -79,16 +83,18 @@
       position = fin
     }
     if (position < texte.length) fragment.append(texte.slice(position))
+    remplacements.push({ origine: noeud, morceaux: [...fragment.childNodes] })
     noeud.replaceWith(fragment)
   }
 
   function retirer() {
-    for (const pastille of document.querySelectorAll(`.${CLASSE_PASTILLE}`)) pastille.remove()
-    for (const titre of document.querySelectorAll(`.${CLASSE_TITRE}`)) {
-      const parent = titre.parentNode
-      titre.replaceWith(titre.textContent)
-      parent?.normalize()
+    for (const { origine, morceaux } of remplacements.reverse()) {
+      // Le nœud d'origine reprend la place du premier morceau encore dans la page ; si la page les a tous retirés,
+      // rien n'est remis
+      morceaux.find((morceau) => morceau.isConnected)?.before(origine)
+      for (const morceau of morceaux) morceau.remove()
     }
+    remplacements = []
   }
 
   function surligner(liste) {
