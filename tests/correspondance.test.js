@@ -106,6 +106,13 @@ describe('correspondance des titres (règles « extension - surlignage »)', () 
     ])
   })
 
+  it('règle 6 : deux titres qui se chevauchent sans commencer au même endroit : le plus long l’emporte', () => {
+    expect(trouves('The Boxer King Returns', [webtoon('The Boxer'), webtoon('Boxer King Returns')])).toEqual([
+      ['Boxer King Returns', 'Boxer King Returns'],
+    ])
+    expect(trouves('The Boxer est là', [webtoon('The Boxer'), webtoon('Boxer King Returns')])).toEqual([['The Boxer', 'The Boxer']])
+  })
+
   it('règle 1 : les titres secondaires sont cherchés comme le titre principal', () => {
     expect(trouves('Na Honjaman Level Up', [webtoon('Solo Leveling', 'Na Honjaman Level Up')])).toEqual([
       ['Na Honjaman Level Up', 'Solo Leveling'],
