@@ -14,24 +14,27 @@ export async function initialiser(doc = document) {
     for (const id of ['erreurServeur', 'deconnecte', 'connecte']) element(id).hidden = id !== vue
   }
 
+  // Toute erreur de l'arrière-plan (API injoignable, arrière-plan sans réponse) laisse la session telle quelle
+  function erreurServeur() {
+    element('erreurServeur').textContent = ERREUR_SERVEUR
+    montrer('erreurServeur')
+  }
+
   async function afficher() {
-    let compte
     try {
-      compte = await envoyer('utilisateur')
+      const compte = await envoyer('utilisateur')
+      if (!compte) {
+        montrer('deconnecte')
+        return
+      }
+      element('utilisateur').textContent = compte.login
+      element('total').textContent = String(compte.total)
+      element('interrupteur').checked = onglet ? await envoyer('etatOnglet', { ongletId: onglet.id }) : false
+      element('interrupteur').disabled = !onglet
+      montrer('connecte')
     } catch {
-      element('erreurServeur').textContent = ERREUR_SERVEUR
-      montrer('erreurServeur')
-      return
+      erreurServeur()
     }
-    if (!compte) {
-      montrer('deconnecte')
-      return
-    }
-    element('utilisateur').textContent = compte.login
-    element('total').textContent = String(compte.total)
-    element('interrupteur').checked = onglet ? await envoyer('etatOnglet', { ongletId: onglet.id }) : false
-    element('interrupteur').disabled = !onglet
-    montrer('connecte')
   }
 
   element('formulaireConnexion').addEventListener('submit', async (evenement) => {
@@ -54,12 +57,24 @@ export async function initialiser(doc = document) {
   })
 
   element('deconnexion').addEventListener('click', async () => {
-    await envoyer('deconnexion')
+    try {
+      await envoyer('deconnexion')
+    } catch {
+      erreurServeur()
+      return
+    }
     await afficher()
   })
 
   element('interrupteur').addEventListener('change', async () => {
-    await envoyer('changerOnglet', { ongletId: onglet.id, actif: element('interrupteur').checked })
+    const interrupteur = element('interrupteur')
+    try {
+      await envoyer('changerOnglet', { ongletId: onglet.id, actif: interrupteur.checked })
+    } catch {
+      // L'arrière-plan n'a pas enregistré le changement : l'interrupteur reprend l'état qu'il connaît
+      interrupteur.checked = !interrupteur.checked
+      erreurServeur()
+    }
   })
 
   await afficher()

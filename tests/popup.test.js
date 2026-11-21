@@ -107,6 +107,29 @@ describe('fenêtre (règles « extension - fenêtre »)', () => {
     expect(chrome.runtime.sendMessage).not.toHaveBeenCalledWith({ type: 'deconnexion' })
   })
 
+  it('l’état de l’onglet illisible : « Erreur de connexion au serveur. » plutôt qu’une fenêtre vide', async () => {
+    reponses.utilisateur = { login: 'lecteur', total: 1 }
+    reponses.etatOnglet = new Error('pas de réponse')
+
+    await initialiser()
+
+    expect(visibles()).toEqual(['erreurServeur'])
+    expect(element('erreurServeur').textContent).toBe('Erreur de connexion au serveur.')
+  })
+
+  it('un changement de l’interrupteur refusé le remet dans son état et affiche l’erreur', async () => {
+    reponses.utilisateur = { login: 'lecteur', total: 1 }
+    await initialiser()
+    reponses.changerOnglet = new Error('pas de réponse')
+
+    element('interrupteur').checked = true
+    element('interrupteur').dispatchEvent(new Event('change'))
+    await attendre()
+
+    expect(element('interrupteur').checked).toBe(false)
+    expect(visibles()).toEqual(['erreurServeur'])
+  })
+
   it('sans onglet courant, l’interrupteur est désactivé et aucun état n’est demandé', async () => {
     chrome.tabs.query.mockResolvedValue([])
     reponses.utilisateur = { login: 'lecteur', total: 1 }
@@ -151,6 +174,18 @@ describe('connexion depuis la fenêtre (règles « extension - connexion »)', (
     await seConnecter('lecteur', 'secret')
 
     expect(element('erreurConnexion').textContent).toBe('Erreur de connexion au serveur.')
+  })
+
+  it('une déconnexion sans réponse de l’arrière-plan affiche l’erreur', async () => {
+    reponses.utilisateur = { login: 'lecteur', total: 1 }
+    await initialiser()
+    reponses.deconnexion = new Error('pas de réponse')
+
+    element('deconnexion').click()
+    await attendre()
+
+    expect(visibles()).toEqual(['erreurServeur'])
+    expect(element('erreurServeur').textContent).toBe('Erreur de connexion au serveur.')
   })
 
   it('la déconnexion revient au formulaire', async () => {
