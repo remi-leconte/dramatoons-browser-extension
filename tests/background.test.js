@@ -32,6 +32,11 @@ describe('arrière-plan', () => {
     expect(await envoyer({ type: 'deconnexion' }, { id: 'autre' })).toBe('ignoré')
   })
 
+  it('ignore un message venu d’un onglet (script de contenu dans une page tierce)', async () => {
+    expect(await envoyer({ type: 'deconnexion' }, { id: 'extension', tab: { id: 3 } })).toBe('ignoré')
+    expect(await envoyer({ type: 'changerOnglet', ongletId: 3, actif: true }, { id: 'extension', tab: { id: 3 } })).toBe('ignoré')
+  })
+
   it('ignore un message inconnu', async () => {
     expect(await envoyer({ type: 'inconnu' })).toBe('ignoré')
   })
@@ -158,7 +163,8 @@ describe('activation d’un onglet (règles « extension - activation » et « l
     await activation
 
     expect(messagesPage().filter(([, message]) => message.type === 'surligner')).toEqual([])
-    expect(chrome.storage.session.donnees).toEqual({})
+    // La page a reçu le script : elle reste marquée, pour qu'un retour par « Précédent » la nettoie
+    expect(chrome.storage.session.donnees).toEqual({ 'surligne-3': true })
   })
 
   it('désactivation pendant l’injection d’une nouvelle page : la liste n’est pas envoyée à la page', async () => {
@@ -196,6 +202,30 @@ describe('activation d’un onglet (règles « extension - activation » et « l
     await page
 
     expect(messagesPage()).toEqual([[3, { type: 'retirer' }]])
+  })
+
+  it('l’envoi de la liste échoue après l’injection : la page est quand même marquée, pour être nettoyée plus tard', async () => {
+    fetch.mockResolvedValueOnce(reponse(200, API_LISTE))
+    chrome.tabs.sendMessage.mockRejectedValueOnce(new Error('The message port closed before a response was received.'))
+
+    await envoyer({ type: 'changerOnglet', ongletId: 3, actif: true })
+
+    expect(chrome.storage.session.donnees['surligne-3']).toBe(true)
+  })
+
+  it('onglet fermé pendant l’injection : sa marque n’est pas recréée', async () => {
+    fetch.mockResolvedValueOnce(reponse(200, API_LISTE))
+    let injecte
+    chrome.scripting.executeScript.mockReturnValueOnce(new Promise((resoudre) => (injecte = resoudre)))
+    const fermeture = chrome.tabs.onRemoved.addListener.mock.calls[0][0]
+
+    const activation = envoyer({ type: 'changerOnglet', ongletId: 3, actif: true })
+    await vi.waitFor(() => expect(chrome.scripting.executeScript).toHaveBeenCalled())
+    await fermeture(3)
+    injecte([])
+    await activation
+
+    expect(chrome.storage.session.donnees).toEqual({})
   })
 
   it('onglet fermé pendant le chargement de sa liste : rien n’est enregistré pour lui', async () => {

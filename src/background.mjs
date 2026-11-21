@@ -41,12 +41,14 @@ const nouvelleDemande = (ongletId) => {
 async function surligner(ongletId, liste, demande) {
   try {
     await chrome.scripting.executeScript({ target: { tabId: ongletId }, files: SCRIPTS_INJECTES })
+    // La page contient maintenant le script : la marque est posée avant l'envoi, qui peut échouer sans que la page
+    // perde le script ; jamais pour un onglet fermé entre-temps (sa table de demandes n'a plus d'entrée)
+    if (demandes.has(ongletId)) await marquerSurligne(ongletId)
     // Le numéro est comparé en dernier, sans attente avant l'envoi : une désactivation passée pendant les lectures
     // est vue, et une désactivation plus tardive envoie son « retirer » après ce « surligner »
     const toujoursActif = (await ongletActif(ongletId)) && (await estConnecte()) && demandes.get(ongletId) === demande
     if (!toujoursActif) return
     await chrome.tabs.sendMessage(ongletId, { type: 'surligner', liste })
-    await marquerSurligne(ongletId)
   } catch {
     // rien à surligner sur cette page
   }
@@ -115,8 +117,10 @@ const actions = {
   rafraichir: (message) => rafraichir(message.ongletId),
 }
 
+// Seule la fenêtre pilote l'arrière-plan : un message d'une autre extension, ou venu d'un onglet (le script de
+// contenu tourne dans des pages tierces), est ignoré
 export function traiter(message, expediteur, repondre) {
-  if (expediteur.id !== chrome.runtime.id) return false
+  if (expediteur.id !== chrome.runtime.id || expediteur.tab) return false
   const action = actions[message?.type]
   if (!action) return false
 
