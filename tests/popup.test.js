@@ -63,24 +63,37 @@ describe('fenêtre (règles « extension - fenêtre »)', () => {
     await initialiser()
 
     expect(visibles()).toEqual(['connecte'])
-    const textes = [...element('connecte').querySelectorAll('.stats-label, .stats-value, label, button')].map(
-      (noeud) => noeud.textContent,
+    const affiches = [...element('connecte').querySelectorAll('.stats-label, .stats-value, label, #deconnexion')].filter(
+      (noeud) => !noeud.closest('[hidden]'),
     )
-    expect(textes).toEqual(['Utilisateur :', 'lecteur', 'Webtoons suivis :', '12', 'Extension activée :', 'Déconnexion'])
+    expect(affiches.map((noeud) => noeud.textContent)).toEqual([
+      'Utilisateur :', 'lecteur', 'Webtoons suivis :', '12', 'Extension activée :', 'Déconnexion',
+    ])
     expect(chrome.runtime.sendMessage.mock.calls.filter(([message]) => message.type === 'utilisateur')).toHaveLength(1)
   })
 
-  it('l’interrupteur montre l’état de l’onglet courant', async () => {
+  it('l’interrupteur montre l’état de l’onglet courant, et « Rafraîchir » n’apparaît que s’il est activé', async () => {
     reponses.utilisateur = { login: 'lecteur', total: 1 }
     reponses.etatOnglet = (message) => message.ongletId === 7
 
     await initialiser()
 
     expect(element('interrupteur').checked).toBe(true)
+    expect(element('ligneRafraichir').hidden).toBe(false)
+    expect(element('ligneRafraichir').textContent).toContain('Rafraîchir :')
   })
 
-  it('l’interrupteur change l’état de l’onglet courant seulement', async () => {
+  it('onglet désactivé : pas de bouton « Rafraîchir »', async () => {
     reponses.utilisateur = { login: 'lecteur', total: 1 }
+
+    await initialiser()
+
+    expect(element('ligneRafraichir').hidden).toBe(true)
+  })
+
+  it('l’interrupteur active l’onglet courant seulement, et fait apparaître « Rafraîchir »', async () => {
+    reponses.utilisateur = { login: 'lecteur', total: 1 }
+    reponses.changerOnglet = (message) => ({ actif: message.actif })
     await initialiser()
 
     element('interrupteur').checked = true
@@ -88,13 +101,183 @@ describe('fenêtre (règles « extension - fenêtre »)', () => {
     await attendre()
 
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ type: 'changerOnglet', ongletId: 7, actif: true })
+    expect(element('ligneRafraichir').hidden).toBe(false)
+
+    element('interrupteur').checked = false
+    element('interrupteur').dispatchEvent(new Event('change'))
+    await attendre()
+
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ type: 'changerOnglet', ongletId: 7, actif: false })
+    expect(element('ligneRafraichir').hidden).toBe(true)
   })
 
-  it('le bouton « Rafraîchir » n’est pas encore affiché (ticket de l’activation)', async () => {
+  it('pendant une activation, l’interrupteur et « Rafraîchir » attendent la réponse', async () => {
     reponses.utilisateur = { login: 'lecteur', total: 1 }
+    let repondre
+    reponses.changerOnglet = () => new Promise((resoudre) => (repondre = resoudre))
     await initialiser()
 
-    expect(document.body.textContent).not.toContain('Rafraîchir')
+    element('interrupteur').checked = true
+    element('interrupteur').dispatchEvent(new Event('change'))
+    await attendre()
+
+    expect(element('interrupteur').disabled).toBe(true)
+    expect(element('rafraichir').disabled).toBe(true)
+
+    repondre({ actif: true })
+    await attendre()
+
+    expect(element('interrupteur').disabled).toBe(false)
+    expect(element('rafraichir').disabled).toBe(false)
+  })
+
+  it('pendant un rafraîchissement, l’interrupteur et « Rafraîchir » attendent la réponse', async () => {
+    reponses.utilisateur = { login: 'lecteur', total: 1 }
+    reponses.etatOnglet = true
+    let repondre
+    reponses.rafraichir = () => new Promise((resoudre) => (repondre = resoudre))
+    await initialiser()
+
+    element('rafraichir').click()
+    await attendre()
+
+    expect(element('interrupteur').disabled).toBe(true)
+    expect(element('rafraichir').disabled).toBe(true)
+
+    repondre({ actif: true })
+    await attendre()
+    await attendre()
+
+    expect(element('interrupteur').disabled).toBe(false)
+    expect(element('rafraichir').disabled).toBe(false)
+  })
+
+  it('une activation avec une session expirée ramène au formulaire de connexion', async () => {
+    reponses.utilisateur = { login: 'lecteur', total: 1 }
+    await initialiser()
+    reponses.changerOnglet = { actif: false, deconnecte: true }
+    reponses.utilisateur = null
+
+    element('interrupteur').checked = true
+    element('interrupteur').dispatchEvent(new Event('change'))
+    await attendre()
+
+    expect(visibles()).toEqual(['deconnecte'])
+  })
+
+  it('« Rafraîchir » recharge la liste de l’onglet et met à jour le nombre de webtoons (liste 3)', async () => {
+    reponses.utilisateur = { login: 'lecteur', total: 1 }
+    reponses.etatOnglet = true
+    reponses.rafraichir = { actif: true }
+    await initialiser()
+    reponses.utilisateur = { login: 'lecteur', total: 2 }
+
+    element('rafraichir').click()
+    await attendre()
+
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ type: 'rafraichir', ongletId: 7 })
+    expect(element('total').textContent).toBe('2')
+    // Un seul GET /me de plus après le clic, celui qui suit le rafraîchissement (le premier est celui de l'ouverture)
+    expect(chrome.runtime.sendMessage.mock.calls.filter(([message]) => message.type === 'utilisateur')).toHaveLength(2)
+  })
+
+  it('« Rafraîchir » avec une session expirée ramène au formulaire, en un seul appel à l’API', async () => {
+    reponses.utilisateur = { login: 'lecteur', total: 1 }
+    reponses.etatOnglet = true
+    reponses.rafraichir = { actif: false, deconnecte: true }
+    await initialiser()
+    reponses.utilisateur = null
+
+    element('rafraichir').click()
+    await attendre()
+
+    expect(visibles()).toEqual(['deconnecte'])
+    expect(chrome.runtime.sendMessage.mock.calls.filter(([message]) => message.type === 'utilisateur')).toHaveLength(2)
+  })
+
+  it('« Rafraîchir » sans réponse de l’arrière-plan affiche l’erreur', async () => {
+    reponses.utilisateur = { login: 'lecteur', total: 1 }
+    reponses.etatOnglet = true
+    reponses.rafraichir = new Error('pas de réponse')
+    await initialiser()
+
+    element('rafraichir').click()
+    await attendre()
+
+    expect(visibles()).toEqual(['erreurServeur'])
+  })
+
+  it('accès aux sites non accordé : la fenêtre le signale et l’interrupteur est désactivé (activation 6)', async () => {
+    reponses.utilisateur = { login: 'lecteur', total: 1 }
+    chrome.permissions.contains.mockResolvedValue(false)
+
+    await initialiser()
+
+    expect(chrome.permissions.contains).toHaveBeenCalledWith({ origins: ['<all_urls>'] })
+    expect(element('acces').hidden).toBe(false)
+    expect(element('acces').textContent).toContain('L\'extension n\'a pas accès aux sites')
+    expect(element('interrupteur').disabled).toBe(true)
+  })
+
+  it('accès retiré alors que l’onglet est activé : l’interrupteur permet encore de le désactiver, sans « Rafraîchir »', async () => {
+    reponses.utilisateur = { login: 'lecteur', total: 1 }
+    reponses.etatOnglet = true
+    reponses.changerOnglet = (message) => ({ actif: message.actif })
+    chrome.permissions.contains.mockResolvedValue(false)
+
+    await initialiser()
+
+    expect(element('interrupteur').checked).toBe(true)
+    expect(element('interrupteur').disabled).toBe(false)
+    expect(element('ligneRafraichir').hidden).toBe(true)
+
+    element('interrupteur').checked = false
+    element('interrupteur').dispatchEvent(new Event('change'))
+    await attendre()
+
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ type: 'changerOnglet', ongletId: 7, actif: false })
+    expect(element('interrupteur').disabled).toBe(true)
+  })
+
+  it('accès aux sites non accordé et API injoignable : le bouton d’accès reste proposé (activation 6)', async () => {
+    reponses.utilisateur = new Error('Failed to fetch')
+    chrome.permissions.contains.mockResolvedValue(false)
+
+    await initialiser()
+
+    expect(visibles()).toEqual(['erreurServeur'])
+    expect(element('acces').hidden).toBe(false)
+  })
+
+  it('accès aux sites non accordé et déconnecté : le bouton d’accès reste proposé', async () => {
+    chrome.permissions.contains.mockResolvedValue(false)
+
+    await initialiser()
+
+    expect(visibles()).toEqual(['deconnecte'])
+    expect(element('acces').hidden).toBe(false)
+  })
+
+  it('« Autoriser l’accès aux sites » le demande, puis la fenêtre se met à jour', async () => {
+    reponses.utilisateur = { login: 'lecteur', total: 1 }
+    chrome.permissions.contains.mockResolvedValue(false)
+    await initialiser()
+    chrome.permissions.contains.mockResolvedValue(true)
+
+    element('autoriserAcces').click()
+    await attendre()
+
+    expect(chrome.permissions.request).toHaveBeenCalledWith({ origins: ['<all_urls>'] })
+    expect(element('acces').hidden).toBe(true)
+    expect(element('interrupteur').disabled).toBe(false)
+  })
+
+  it('accès accordé : pas de message d’accès', async () => {
+    reponses.utilisateur = { login: 'lecteur', total: 1 }
+
+    await initialiser()
+
+    expect(element('acces').hidden).toBe(true)
   })
 
   it('l’API injoignable : « Erreur de connexion au serveur. »', async () => {
@@ -154,6 +337,17 @@ describe('connexion depuis la fenêtre (règles « extension - connexion »)', (
     expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ type: 'connexion', login: 'lecteur', motDePasse: 'secret' })
     expect(visibles()).toEqual(['connecte'])
     expect(element('motDePasse').value).toBe('')
+  })
+
+  it('après la connexion, aucun onglet n’est surligné d’office, même affiché activé (connexion 3)', async () => {
+    await initialiser()
+    reponses.connexion = { ok: true }
+    reponses.utilisateur = { login: 'lecteur', total: 4 }
+    reponses.etatOnglet = true
+
+    await seConnecter('lecteur', 'secret')
+
+    expect(chrome.runtime.sendMessage.mock.calls.some(([message]) => ['rafraichir', 'changerOnglet'].includes(message.type))).toBe(false)
   })
 
   it('une connexion refusée affiche le message, et le formulaire reste', async () => {

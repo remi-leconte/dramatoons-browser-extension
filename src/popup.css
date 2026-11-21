@@ -88,6 +88,34 @@ body {
     transform:translateX(20px);
 }
 
+/* Bouton « Rafraîchir » */
+#rafraichir {
+    background:#4CAF50;
+    border:none;
+    border-radius:50%;
+    width:36px;
+    height:36px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition: transform 0.2s, background 0.2s;
+}
+
+#rafraichir:hover {
+    background:#3d923f;
+    transform: rotate(20deg);
+}
+
+#rafraichir svg {
+    width:18px;
+    height:18px;
+}
+
+#acces .error-msg {
+    margin: 0 0 10px;
+}
+
 /* Compte */
 .stats {
     font-size: 13px;

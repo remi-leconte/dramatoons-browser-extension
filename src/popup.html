@@ -14,6 +14,11 @@
   </div>
 </a>
 
+<div id="acces" class="card" hidden>
+  <div class="error-msg">L'extension n'a pas accès aux sites : elle ne peut rien surligner.</div>
+  <button type="button" id="autoriserAcces" class="btn-login">Autoriser l'accès aux sites</button>
+</div>
+
 <div id="erreurServeur" class="card error-msg" hidden></div>
 
 <div id="deconnecte" class="card" hidden>
@@ -46,6 +51,16 @@
   <div class="controls-row">
     <label class="label" for="interrupteur">Extension activée :</label>
     <input type="checkbox" id="interrupteur">
+  </div>
+
+  <div class="controls-row" id="ligneRafraichir" hidden>
+    <label class="label" for="rafraichir">Rafraîchir :</label>
+    <button type="button" id="rafraichir" title="Rafraîchir">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="white" viewBox="0 0 16 16" aria-hidden="true">
+        <path d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 1 0-.908-.418A6 6 0 1 0 8 2v1z"/>
+        <path d="M8 0v3h3"/>
+      </svg>
+    </button>
   </div>
 
   <button type="button" id="deconnexion" class="btn-logout">Déconnexion</button>

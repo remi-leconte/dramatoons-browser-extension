@@ -1,4 +1,5 @@
 const ERREUR_SERVEUR = 'Erreur de connexion au serveur.'
+const TOUS_LES_SITES = { origins: ['<all_urls>'] }
 
 async function envoyer(type, donnees = {}) {
   const reponse = await chrome.runtime.sendMessage({ type, ...donnees })
@@ -20,7 +21,22 @@ export async function initialiser(doc = document) {
     montrer('erreurServeur')
   }
 
+  let acces = true
+
+  // Sans accès aux sites, l'onglet ne peut pas être activé ni rafraîchi, mais un onglet activé peut toujours être
+  // désactivé
+  function afficherInterrupteur(actif) {
+    element('interrupteur').checked = actif
+    element('interrupteur').disabled = !onglet || (!acces && !actif)
+    element('rafraichir').disabled = false
+    element('ligneRafraichir').hidden = !actif || !acces
+  }
+
   async function afficher() {
+    // L'accès aux sites d'abord, quel que soit le reste : sur Chrome et Edge, le retirer peut aussi bloquer l'API,
+    // et la fenêtre doit quand même proposer de le rendre
+    acces = await chrome.permissions.contains(TOUS_LES_SITES)
+    element('acces').hidden = acces
     try {
       const compte = await envoyer('utilisateur')
       if (!compte) {
@@ -29,12 +45,17 @@ export async function initialiser(doc = document) {
       }
       element('utilisateur').textContent = compte.login
       element('total').textContent = String(compte.total)
-      element('interrupteur').checked = onglet ? await envoyer('etatOnglet', { ongletId: onglet.id }) : false
-      element('interrupteur').disabled = !onglet
+      afficherInterrupteur(onglet ? await envoyer('etatOnglet', { ongletId: onglet.id }) : false)
       montrer('connecte')
     } catch {
       erreurServeur()
     }
+  }
+
+  // Résultat d'une activation ou d'un rafraîchissement : une session expirée ramène au formulaire
+  async function appliquer(resultat) {
+    if (resultat.deconnecte) await afficher()
+    else afficherInterrupteur(resultat.actif)
   }
 
   element('formulaireConnexion').addEventListener('submit', async (evenement) => {
@@ -66,15 +87,42 @@ export async function initialiser(doc = document) {
     await afficher()
   })
 
+  // Pendant une activation ou un rafraîchissement (jusqu'au délai de l'API), l'interrupteur et « Rafraîchir »
+  // attendent la réponse : afficherInterrupteur() les rend ensuite selon l'état réel de l'onglet
+  function patienter() {
+    element('interrupteur').disabled = true
+    element('rafraichir').disabled = true
+  }
+
   element('interrupteur').addEventListener('change', async () => {
     const interrupteur = element('interrupteur')
+    patienter()
     try {
-      await envoyer('changerOnglet', { ongletId: onglet.id, actif: interrupteur.checked })
+      await appliquer(await envoyer('changerOnglet', { ongletId: onglet.id, actif: interrupteur.checked }))
     } catch {
       // L'arrière-plan n'a pas enregistré le changement : l'interrupteur reprend l'état qu'il connaît
-      interrupteur.checked = !interrupteur.checked
+      afficherInterrupteur(!interrupteur.checked)
       erreurServeur()
     }
+  })
+
+  // « Rafraîchir » recharge la liste et refait le surlignage ; afficher() relit ensuite la session, le nombre de
+  // webtoons et l'état de l'onglet (une session expirée y ramène au formulaire)
+  element('rafraichir').addEventListener('click', async () => {
+    patienter()
+    try {
+      await envoyer('rafraichir', { ongletId: onglet.id })
+    } catch {
+      erreurServeur()
+      return
+    }
+    await afficher()
+  })
+
+  // La demande d'accès doit partir d'un clic de l'utilisateur, d'où le bouton
+  element('autoriserAcces').addEventListener('click', async () => {
+    await chrome.permissions.request(TOUS_LES_SITES)
+    await afficher()
   })
 
   await afficher()
