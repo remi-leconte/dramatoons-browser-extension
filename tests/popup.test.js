@@ -162,6 +162,26 @@ describe('fenêtre (règles « extension - fenêtre »)', () => {
     expect(element('interrupteur').disabled).toBe(true)
   })
 
+  it('accès retiré alors que l’onglet est activé : l’interrupteur permet encore de le désactiver, sans « Rafraîchir »', async () => {
+    reponses.utilisateur = { login: 'lecteur', total: 1 }
+    reponses.etatOnglet = true
+    reponses.changerOnglet = (message) => ({ actif: message.actif })
+    chrome.permissions.contains.mockResolvedValue(false)
+
+    await initialiser()
+
+    expect(element('interrupteur').checked).toBe(true)
+    expect(element('interrupteur').disabled).toBe(false)
+    expect(element('ligneRafraichir').hidden).toBe(true)
+
+    element('interrupteur').checked = false
+    element('interrupteur').dispatchEvent(new Event('change'))
+    await attendre()
+
+    expect(chrome.runtime.sendMessage).toHaveBeenCalledWith({ type: 'changerOnglet', ongletId: 7, actif: false })
+    expect(element('interrupteur').disabled).toBe(true)
+  })
+
   it('« Autoriser l’accès aux sites » le demande, puis la fenêtre se met à jour', async () => {
     reponses.utilisateur = { login: 'lecteur', total: 1 }
     chrome.permissions.contains.mockResolvedValue(false)

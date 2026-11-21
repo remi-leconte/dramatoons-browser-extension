@@ -21,9 +21,14 @@ export async function initialiser(doc = document) {
     montrer('erreurServeur')
   }
 
+  let acces = true
+
+  // Sans accès aux sites, l'onglet ne peut pas être activé ni rafraîchi, mais un onglet activé peut toujours être
+  // désactivé
   function afficherInterrupteur(actif) {
     element('interrupteur').checked = actif
-    element('ligneRafraichir').hidden = !actif
+    element('interrupteur').disabled = !onglet || (!acces && !actif)
+    element('ligneRafraichir').hidden = !actif || !acces
   }
 
   async function afficher() {
@@ -35,10 +40,9 @@ export async function initialiser(doc = document) {
       }
       element('utilisateur').textContent = compte.login
       element('total').textContent = String(compte.total)
-      const acces = await chrome.permissions.contains(TOUS_LES_SITES)
+      acces = await chrome.permissions.contains(TOUS_LES_SITES)
       element('acces').hidden = acces
       afficherInterrupteur(onglet ? await envoyer('etatOnglet', { ongletId: onglet.id }) : false)
-      element('interrupteur').disabled = !onglet || !acces
       montrer('connecte')
     } catch {
       erreurServeur()
