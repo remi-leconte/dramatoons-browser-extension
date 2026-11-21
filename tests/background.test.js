@@ -191,6 +191,72 @@ describe('activation d’un onglet (règles « extension - activation » et « l
     expect(injections()).toEqual([])
   })
 
+  /** Bloque l'écriture de l'activation dans storage.session, pour faire arriver une action pendant celle-ci. */
+  function bloquerEcritureActivation() {
+    let liberer
+    const ecrire = chrome.storage.session.set.getMockImplementation()
+    chrome.storage.session.set.mockImplementationOnce(async (valeurs) => {
+      await new Promise((resoudre) => (liberer = resoudre))
+      return ecrire(valeurs)
+    })
+    return () => liberer()
+  }
+
+  it('désactivation pendant l’enregistrement de l’activation : l’onglet reste désactivé, sans surlignage', async () => {
+    fetch.mockResolvedValueOnce(reponse(200, API_LISTE))
+    const liberer = bloquerEcritureActivation()
+
+    const activation = envoyer({ type: 'changerOnglet', ongletId: 3, actif: true })
+    await vi.waitFor(() => expect(chrome.storage.session.set).toHaveBeenCalled())
+    await envoyer({ type: 'changerOnglet', ongletId: 3, actif: false })
+    liberer()
+
+    expect(await activation).toEqual({ ok: true, resultat: { actif: false } })
+    expect(chrome.storage.session.donnees).toEqual({})
+    expect(messagesPage().filter(([, message]) => message.type === 'surligner')).toEqual([])
+  })
+
+  it('déconnexion pendant l’enregistrement de l’activation : rien ne reste pour un autre compte (connexion 6)', async () => {
+    fetch.mockResolvedValueOnce(reponse(200, API_LISTE))
+    const liberer = bloquerEcritureActivation()
+
+    const activation = envoyer({ type: 'changerOnglet', ongletId: 3, actif: true })
+    await vi.waitFor(() => expect(chrome.storage.session.set).toHaveBeenCalled())
+    await envoyer({ type: 'deconnexion' })
+    liberer()
+
+    expect(await activation).toEqual({ ok: true, resultat: { actif: false } })
+    expect(chrome.storage.session.donnees).toEqual({})
+    expect(messagesPage().filter(([, message]) => message.type === 'surligner')).toEqual([])
+  })
+
+  it('désactivation puis réactivation pendant le chargement d’une page : l’ancienne liste n’est jamais envoyée', async () => {
+    Object.assign(chrome.storage.session.donnees, { 'onglet-3': true, 'liste-3': LISTE })
+    const nouvelleListe = [{ ...API_LISTE[0], title: { title: 'The Boxer' } }]
+    // La page lit l'ancienne liste, puis attend : désactivation et réactivation passent pendant ce temps
+    let liberer
+    const lire = chrome.storage.session.get.getMockImplementation()
+    chrome.storage.session.get.mockImplementation(async (cle) => {
+      const valeurs = await lire(cle)
+      if (cle === 'liste-3' && !liberer) await new Promise((resoudre) => (liberer = resoudre))
+      return valeurs
+    })
+    const chargement = chrome.tabs.onUpdated.addListener.mock.calls[0][0]
+
+    const page = chargement(3, { status: 'complete' })
+    await vi.waitFor(() => expect(liberer).toBeDefined())
+    await envoyer({ type: 'changerOnglet', ongletId: 3, actif: false })
+    fetch.mockResolvedValueOnce(reponse(200, nouvelleListe))
+    await envoyer({ type: 'changerOnglet', ongletId: 3, actif: true })
+    liberer()
+    await page
+
+    const listesEnvoyees = messagesPage()
+      .filter(([, message]) => message.type === 'surligner')
+      .map(([, message]) => message.liste[0].titrePrincipal)
+    expect(listesEnvoyees).toEqual(['The Boxer'])
+  })
+
   it('nouvelle page d’un onglet activé : surlignée avec la liste gardée, sans appel à l’API', async () => {
     Object.assign(chrome.storage.session.donnees, { 'onglet-3': true, 'liste-3': LISTE })
     const chargement = chrome.tabs.onUpdated.addListener.mock.calls[0][0]

@@ -22,8 +22,7 @@ const nouvelleDemande = (ongletId) => {
 // Une page où l'extension ne peut pas s'exécuter (page interne du navigateur, store) n'est simplement pas surlignée.
 // Une désactivation, une déconnexion ou une fermeture arrivée pendant l'injection l'emporte : son « retirer » a pu
 // se perdre avant que la page écoute, la liste n'est donc envoyée que si l'onglet est toujours activé
-async function surligner(ongletId, liste) {
-  const demande = demandes.get(ongletId)
+async function surligner(ongletId, liste, demande) {
   try {
     await chrome.scripting.executeScript({ target: { tabId: ongletId }, files: ['lib/correspondance.js', 'contenu.js'] })
     const toujoursActif = demandes.get(ongletId) === demande && (await ongletActif(ongletId)) && (await estConnecte())
@@ -52,9 +51,16 @@ async function changerOnglet(ongletId, actif) {
   }
   const liste = await chargerListe()
   if (!liste) return { actif: false, deconnecte: true }
-  if (demandes.get(ongletId) !== demande || !(await estConnecte())) return { actif: await ongletActif(ongletId) }
+  const encoreValable = async () => demandes.get(ongletId) === demande && (await estConnecte())
+  if (!(await encoreValable())) return { actif: await ongletActif(ongletId) }
   await activerOnglet(ongletId, liste)
-  await surligner(ongletId, liste)
+  // Une désactivation ou une déconnexion a pu passer pendant l'écriture, sans voir cet onglet : on l'annule
+  if (!(await encoreValable())) {
+    await oublierOnglet(ongletId)
+    await retirer(ongletId)
+    return { actif: false }
+  }
+  await surligner(ongletId, liste, demande)
   return { actif: true }
 }
 
@@ -101,9 +107,10 @@ export function traiter(message, expediteur, repondre) {
 // Nouvelle page dans un onglet activé : surlignée avec la liste déjà chargée, sans appel à l'API. Une session
 // expirée entre-temps (renouvellement refusé) ne surligne plus rien : l'onglet attend la reconnexion
 export async function pageChargee(ongletId, changement) {
+  const demande = demandes.get(ongletId)
   if (changement.status !== 'complete' || !(await ongletActif(ongletId)) || !(await estConnecte())) return
   const liste = await listeOnglet(ongletId)
-  if (liste) await surligner(ongletId, liste)
+  if (liste) await surligner(ongletId, liste, demande)
 }
 
 chrome.runtime.onMessage.addListener(traiter)
