@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Dramatoons Highlighter",
   "version": "2.5.0",
-  "description": "Surligne, sur les sites de lecture, les webtoons de votre bibliothèque Dramatoons, avec votre note et votre dernier chapitre lu.",
+  "description": "Surligne, dans les pages que vous visitez, les webtoons de votre bibliothèque Dramatoons, avec votre note et votre dernier chapitre lu.",
   "browser_specific_settings": {
     "gecko": {
       "id": "dramatoons-highlighter@dramatoons.ovh",
