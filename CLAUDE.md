@@ -23,13 +23,15 @@ Un `.mjs` déclaré en script de contenu, ou en arrière-plan sans `"type": "mod
 
 - `src/` : l'extension telle qu'elle est chargée par le navigateur, `manifest.json` à la racine. Seul ce dossier est livré.
   - `manifest.json` : l'arrière-plan est déclaré pour les deux navigateurs, `service_worker` pour Chrome et Edge, `scripts` pour Firefox ; chacun ignore la clé de l'autre. Permissions : `storage`, et l'accès à l'API de production et à celle du dev (`127.0.0.1:8081`).
-  - `config.mjs` : `API_URL`, versionné avec l'adresse de l'API du dev ; la construction du zip de production la remplace.
+  - `config.mjs` : `API_URL`, versionné avec l'adresse de l'API du dev (voir la construction du zip, ci-dessous).
   - `background.mjs` : l'arrière-plan, seul à appeler l'API. Il répond aux messages de la fenêtre (`chrome.runtime.sendMessage({ type, … })`, réponse `{ ok, resultat }` ou `{ ok: false, erreur }`) : `connexion`, `deconnexion`, `utilisateur`, `etatOnglet`, `changerOnglet`. Il ignore les messages d'une autre extension.
-  - `lib/session.mjs` : connexion (`POST /login`), jetons dans `storage.local` (gardés à la fermeture du navigateur), requêtes authentifiées avec un seul renouvellement à la fois (`/token/refresh`, jeton à usage unique), déconnexion si le renouvellement est refusé.
+  - `lib/session.mjs` : connexion (`POST /login`), jetons dans `storage.local` (gardés à la fermeture du navigateur), requêtes authentifiées avec un seul renouvellement à la fois (`/token/refresh`, jeton à usage unique), déconnexion si le renouvellement est refusé (pas sur une panne réseau ni une API en erreur, 5xx).
   - `lib/onglets.mjs` : état de l'interrupteur de chaque onglet, dans `storage.session`, qui survit à la mise en veille de l'arrière-plan de Chrome ; oublié à la fermeture de l'onglet.
   - `popup.html`, `popup.css`, `popup.mjs` : la fenêtre de l'extension.
 - `scripts/` : `verifier.mjs` et `lint-firefox.mjs`, vérifications de la CI (voir « CI »).
 - `tests/` : tests Vitest (`*.test.js`). `chrome-simule.js` remplace l'API `chrome` du navigateur (stockages en mémoire) ; les tests de la fenêtre tournent dans `happy-dom`.
+
+La construction du zip de production n'existe pas encore : elle viendra avec son propre ticket (script `build.sh`). Elle remplacera `API_URL` par l'adresse de l'API de production et retirera du manifeste l'accès à l'API du dev (`127.0.0.1:8081`), pour que la version publiée n'ait que les permissions nécessaires. D'ici là, aucun zip ne se publie depuis `src/`.
 
 ## CI
 `.github/workflows/ci.yml` tourne sur chaque PR vers `main`. Deux checks, obligatoires pour fusionner, avec la relecture IA :
