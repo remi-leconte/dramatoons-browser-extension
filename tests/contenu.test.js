@@ -109,6 +109,16 @@ describe('surlignage dans la page (règles « extension - surlignage »)', () =>
     expect(document.querySelector('svg text').children).toHaveLength(0)
   })
 
+  it('un document sans <body> (fichier SVG ou XML) n’est simplement pas surligné', () => {
+    const corps = document.body
+    corps.remove()
+    try {
+      expect(() => surligner([webtoon('Solo')])).not.toThrow()
+    } finally {
+      document.documentElement.append(corps)
+    }
+  })
+
   it('activation 5 : retirer le surlignage rend la page telle qu’elle était', () => {
     document.body.innerHTML = '<p>Lu : <b>The Boxer</b> et Solo hier</p>'
     const avant = document.body.innerHTML

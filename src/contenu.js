@@ -99,6 +99,8 @@
 
   function surligner(liste) {
     retirer()
+    // Document sans <body> (fichier SVG ou XML ouvert directement) : rien à surligner
+    if (!document.body) return
     const prepares = globalThis.DramatoonsCorrespondance.preparer(liste)
     for (const noeud of noeudsTexte(document.body)) surlignerNoeud(noeud, prepares)
   }
