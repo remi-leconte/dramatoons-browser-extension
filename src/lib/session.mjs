@@ -87,12 +87,14 @@ function renouveler() {
         await deconnecter()
         return null
       }
-      // Une panne réseau lève une erreur sans déconnecter : la session est peut-être encore valable
+      // Une panne réseau ou une API en erreur (5xx) lève une erreur sans déconnecter : la session est peut-être
+      // encore valable. Seul un refus de l'API déconnecte
       const reponse = await fetch(`${API_URL}/token/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ refresh_token: jetonRenouvellement }),
       })
+      if (reponse.status >= 500) throw new Error(`POST /token/refresh : ${reponse.status}`)
       const donnees = reponse.ok ? await reponse.json().catch(() => ({})) : {}
       if (!donnees.token) {
         await deconnecter()

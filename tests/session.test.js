@@ -154,6 +154,14 @@ describe('session (règles « extension - connexion » 4 et 5)', () => {
     expect(chrome.storage.local.donnees).toEqual({ jeton: 'jeton-1', jetonRenouvellement: 'renouvellement-1' })
   })
 
+  it('ne déconnecte pas si l’API est en erreur pendant le renouvellement (502)', async () => {
+    connecte()
+    fetch.mockResolvedValueOnce(reponse(401)).mockResolvedValueOnce(reponse(502))
+
+    await expect(utilisateur()).rejects.toThrow('POST /token/refresh : 502')
+    expect(chrome.storage.local.donnees).toEqual({ jeton: 'jeton-1', jetonRenouvellement: 'renouvellement-1' })
+  })
+
   it('garde la session dans storage.local, qui survit à la fermeture du navigateur', async () => {
     fetch.mockResolvedValueOnce(reponse(200, { token: 'jeton-1', refresh_token: 'renouvellement-1' }))
 
