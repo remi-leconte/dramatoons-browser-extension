@@ -6,7 +6,7 @@ body {
     color:#333;
 }
 
-/* HEADER */
+/* En-tête */
 .header-link {
     text-decoration: none;
     color: inherit;
@@ -40,7 +40,7 @@ body {
     color: #222;
 }
 
-/* --- GENERAL CARD --- */
+/* Cartes */
 .card {
     background: white;
     border-radius: 12px;
@@ -51,7 +51,7 @@ body {
 
 [hidden] { display: none !important; }
 
-/* CONTROLS */
+/* Lignes de réglage */
 .controls-row {
     display:flex;
     align-items:center;
@@ -64,7 +64,7 @@ body {
     font-weight:600;
 }
 
-/* TOGGLE */
+/* Interrupteur */
 #interrupteur {
     width:42px; height:22px;
     appearance:none;
@@ -88,7 +88,7 @@ body {
     transform:translateX(20px);
 }
 
-/* --- STATS --- */
+/* Compte */
 .stats {
     font-size: 13px;
     color:#555;
@@ -96,26 +96,27 @@ body {
     margin-top: 6px;
     text-align:left;
 }
-  .stats-row {
-  	display: flex;
-  	justify-content: space-between; /* label à gauche, valeur à droite */
-  	padding: 2px 0;
-  	margin-bottom: 6px;
-  }
 
-  .stats-label {
-  	font-weight: 600;
-  	color: #444;
-  }
+.stats-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 2px 0;
+    margin-bottom: 6px;
+}
 
-  .stats-value {
-  	text-align: right;
-  	font-weight: 500;
-  	color: #222;
-  	margin-right:10px;
-  }
+.stats-label {
+    font-weight: 600;
+    color: #444;
+}
 
-/* --- FORMULAIRE DE CONNEXION --- */
+.stats-value {
+    text-align: right;
+    font-weight: 500;
+    color: #222;
+    margin-right:10px;
+}
+
+/* Formulaire de connexion */
 .form-group {
     margin-bottom: 10px;
 }
