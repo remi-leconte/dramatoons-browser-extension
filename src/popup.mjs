@@ -1,4 +1,5 @@
 const ERREUR_SERVEUR = 'Erreur de connexion au serveur.'
+const TOUS_LES_SITES = { origins: ['<all_urls>'] }
 
 async function envoyer(type, donnees = {}) {
   const reponse = await chrome.runtime.sendMessage({ type, ...donnees })
@@ -20,6 +21,11 @@ export async function initialiser(doc = document) {
     montrer('erreurServeur')
   }
 
+  function afficherInterrupteur(actif) {
+    element('interrupteur').checked = actif
+    element('ligneRafraichir').hidden = !actif
+  }
+
   async function afficher() {
     try {
       const compte = await envoyer('utilisateur')
@@ -29,12 +35,20 @@ export async function initialiser(doc = document) {
       }
       element('utilisateur').textContent = compte.login
       element('total').textContent = String(compte.total)
-      element('interrupteur').checked = onglet ? await envoyer('etatOnglet', { ongletId: onglet.id }) : false
-      element('interrupteur').disabled = !onglet
+      const acces = await chrome.permissions.contains(TOUS_LES_SITES)
+      element('acces').hidden = acces
+      afficherInterrupteur(onglet ? await envoyer('etatOnglet', { ongletId: onglet.id }) : false)
+      element('interrupteur').disabled = !onglet || !acces
       montrer('connecte')
     } catch {
       erreurServeur()
     }
+  }
+
+  // Résultat d'une activation ou d'un rafraîchissement : une session expirée ramène au formulaire
+  async function appliquer(resultat) {
+    if (resultat.deconnecte) await afficher()
+    else afficherInterrupteur(resultat.actif)
   }
 
   element('formulaireConnexion').addEventListener('submit', async (evenement) => {
@@ -54,6 +68,14 @@ export async function initialiser(doc = document) {
     }
     element('motDePasse').value = ''
     await afficher()
+    // Un onglet resté activé (session expirée entre-temps) est surligné aussitôt
+    if (element('interrupteur').checked) {
+      try {
+        await appliquer(await envoyer('rafraichir', { ongletId: onglet.id }))
+      } catch {
+        erreurServeur()
+      }
+    }
   })
 
   element('deconnexion').addEventListener('click', async () => {
@@ -69,12 +91,29 @@ export async function initialiser(doc = document) {
   element('interrupteur').addEventListener('change', async () => {
     const interrupteur = element('interrupteur')
     try {
-      await envoyer('changerOnglet', { ongletId: onglet.id, actif: interrupteur.checked })
+      await appliquer(await envoyer('changerOnglet', { ongletId: onglet.id, actif: interrupteur.checked }))
     } catch {
       // L'arrière-plan n'a pas enregistré le changement : l'interrupteur reprend l'état qu'il connaît
-      interrupteur.checked = !interrupteur.checked
+      afficherInterrupteur(!interrupteur.checked)
       erreurServeur()
     }
+  })
+
+  // « Rafraîchir » recharge la liste et refait le surlignage ; afficher() met à jour le nombre de webtoons
+  element('rafraichir').addEventListener('click', async () => {
+    try {
+      await appliquer(await envoyer('rafraichir', { ongletId: onglet.id }))
+    } catch {
+      erreurServeur()
+      return
+    }
+    await afficher()
+  })
+
+  // La demande d'accès doit partir d'un clic de l'utilisateur, d'où le bouton
+  element('autoriserAcces').addEventListener('click', async () => {
+    await chrome.permissions.request(TOUS_LES_SITES)
+    await afficher()
   })
 
   await afficher()
