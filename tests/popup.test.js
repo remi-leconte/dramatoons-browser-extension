@@ -223,6 +223,25 @@ describe('fenêtre (règles « extension - fenêtre »)', () => {
     expect(element('interrupteur').disabled).toBe(true)
   })
 
+  it('accès aux sites non accordé et API injoignable : le bouton d’accès reste proposé (activation 6)', async () => {
+    reponses.utilisateur = new Error('Failed to fetch')
+    chrome.permissions.contains.mockResolvedValue(false)
+
+    await initialiser()
+
+    expect(visibles()).toEqual(['erreurServeur'])
+    expect(element('acces').hidden).toBe(false)
+  })
+
+  it('accès aux sites non accordé et déconnecté : le bouton d’accès reste proposé', async () => {
+    chrome.permissions.contains.mockResolvedValue(false)
+
+    await initialiser()
+
+    expect(visibles()).toEqual(['deconnecte'])
+    expect(element('acces').hidden).toBe(false)
+  })
+
   it('« Autoriser l’accès aux sites » le demande, puis la fenêtre se met à jour', async () => {
     reponses.utilisateur = { login: 'lecteur', total: 1 }
     chrome.permissions.contains.mockResolvedValue(false)

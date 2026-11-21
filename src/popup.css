@@ -112,8 +112,8 @@ body {
     height:18px;
 }
 
-#acces {
-    margin-bottom: 12px;
+#acces .error-msg {
+    margin: 0 0 10px;
 }
 
 /* Compte */

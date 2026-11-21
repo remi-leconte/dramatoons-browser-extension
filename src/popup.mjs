@@ -33,6 +33,10 @@ export async function initialiser(doc = document) {
   }
 
   async function afficher() {
+    // L'accès aux sites d'abord, quel que soit le reste : sur Chrome et Edge, le retirer peut aussi bloquer l'API,
+    // et la fenêtre doit quand même proposer de le rendre
+    acces = await chrome.permissions.contains(TOUS_LES_SITES)
+    element('acces').hidden = acces
     try {
       const compte = await envoyer('utilisateur')
       if (!compte) {
@@ -41,8 +45,6 @@ export async function initialiser(doc = document) {
       }
       element('utilisateur').textContent = compte.login
       element('total').textContent = String(compte.total)
-      acces = await chrome.permissions.contains(TOUS_LES_SITES)
-      element('acces').hidden = acces
       afficherInterrupteur(onglet ? await envoyer('etatOnglet', { ongletId: onglet.id }) : false)
       montrer('connecte')
     } catch {
