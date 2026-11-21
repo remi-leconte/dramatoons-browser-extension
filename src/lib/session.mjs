@@ -3,6 +3,11 @@ import { API_URL } from '../config.mjs'
 const ERREUR_SERVEUR = 'Erreur de connexion au serveur.'
 const IDENTIFIANTS_INVALIDES = 'Identifiants invalides.'
 
+// Une API qui accepte la connexion sans répondre laisserait la fenêtre vide jusqu'au délai du navigateur :
+// au-delà, l'appel échoue comme une panne réseau (erreur, sans déconnexion)
+export const DELAI_API_MS = 10_000
+const expiration = () => AbortSignal.timeout(DELAI_API_MS)
+
 // Le jeton de renouvellement est à usage unique : deux renouvellements simultanés feraient échouer le second,
 // qui déconnecterait l'utilisateur. Les requêtes qui reçoivent un 401 en même temps attendent donc le même
 let renouvellementEnCours = null
@@ -17,6 +22,7 @@ export async function connecter(login, motDePasse) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       body: JSON.stringify({ login, password: motDePasse }),
+      signal: expiration(),
     })
   } catch {
     return { ok: false, message: ERREUR_SERVEUR }
@@ -76,6 +82,7 @@ export async function utilisateur() {
 function appeler(chemin, jeton) {
   return fetch(`${API_URL}${chemin}`, {
     headers: { Authorization: `Bearer ${jeton}`, Accept: 'application/json' },
+    signal: expiration(),
   })
 }
 
@@ -93,6 +100,7 @@ function renouveler() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ refresh_token: jetonRenouvellement }),
+        signal: expiration(),
       })
       if (reponse.status >= 500) throw new Error(`POST /token/refresh : ${reponse.status}`)
       const donnees = reponse.ok ? await reponse.json().catch(() => ({})) : {}

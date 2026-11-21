@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { API_URL } from '../src/config.mjs'
-import { connecter, deconnecter, requete, utilisateur } from '../src/lib/session.mjs'
+import { DELAI_API_MS, connecter, deconnecter, requete, utilisateur } from '../src/lib/session.mjs'
 import { reponse, simulerChrome } from './chrome-simule.js'
 
 let chrome
@@ -14,6 +14,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.restoreAllMocks()
 })
 
 const connecte = (jeton = 'jeton-1', jetonRenouvellement = 'renouvellement-1') =>
@@ -76,12 +77,53 @@ describe('utilisateur connecté (règle « extension - fenêtre » 3 et 4)', () 
     expect(fetch).toHaveBeenCalledTimes(1)
     expect(fetch).toHaveBeenCalledWith(`${API_URL}/me`, {
       headers: { Authorization: 'Bearer jeton-1', Accept: 'application/json' },
+      signal: expect.any(AbortSignal),
     })
   })
 
   it('lève une erreur sans déconnecter si l’API ne répond pas (règle « extension - fenêtre » 4)', async () => {
     connecte()
     fetch.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+
+    await expect(utilisateur()).rejects.toThrow()
+    expect(chrome.storage.local.donnees).toEqual({ jeton: 'jeton-1', jetonRenouvellement: 'renouvellement-1' })
+  })
+
+  it('chaque appel à l’API a un délai maximal (règle « extension - fenêtre » 4)', async () => {
+    connecte()
+    fetch
+      .mockResolvedValueOnce(reponse(401))
+      .mockResolvedValueOnce(reponse(200, { token: 'jeton-2', refresh_token: 'renouvellement-2' }))
+      .mockResolvedValueOnce(reponse(200, { username: 'lecteur', total: 1 }))
+      .mockResolvedValueOnce(reponse(200, { token: 'jeton-3', refresh_token: 'renouvellement-3' }))
+
+    await utilisateur()
+    await connecter('lecteur', 'secret')
+
+    expect(fetch).toHaveBeenCalledTimes(4)
+    for (const [, options] of fetch.mock.calls) expect(options.signal).toBeInstanceOf(AbortSignal)
+  })
+
+  it('le délai maximal est de DELAI_API_MS, et son dépassement sur GET /me lève une erreur sans déconnecter', async () => {
+    const delai = vi.spyOn(AbortSignal, 'timeout')
+    connecte()
+    fetch.mockRejectedValueOnce(new DOMException('délai dépassé', 'TimeoutError'))
+
+    await expect(utilisateur()).rejects.toThrow()
+
+    expect(delai).toHaveBeenCalledWith(DELAI_API_MS)
+    expect(chrome.storage.local.donnees).toEqual({ jeton: 'jeton-1', jetonRenouvellement: 'renouvellement-1' })
+  })
+
+  it('une connexion sans réponse dans le délai : « Erreur de connexion au serveur. »', async () => {
+    fetch.mockRejectedValueOnce(new DOMException('délai dépassé', 'TimeoutError'))
+
+    expect(await connecter('lecteur', 'secret')).toEqual({ ok: false, message: 'Erreur de connexion au serveur.' })
+  })
+
+  it('un renouvellement sans réponse dans le délai ne déconnecte pas', async () => {
+    connecte()
+    fetch.mockResolvedValueOnce(reponse(401)).mockRejectedValueOnce(new DOMException('délai dépassé', 'TimeoutError'))
 
     await expect(utilisateur()).rejects.toThrow()
     expect(chrome.storage.local.donnees).toEqual({ jeton: 'jeton-1', jetonRenouvellement: 'renouvellement-1' })
