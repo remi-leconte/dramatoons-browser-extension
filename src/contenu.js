@@ -17,6 +17,9 @@
   // Chaque nœud de texte remplacé, avec ce qui l'a remplacé : le retrait remet le nœud d'origine lui-même. Un site
   // construit par un framework (React, Vue) garde des références vers ses nœuds de texte, qui doivent rester les mêmes
   const remplacements = new Map()
+  // Le nœud d'origine de chaque morceau
+  const origines = new WeakMap()
+  const suivi = (morceau) => remplacements.has(origines.get(morceau))
   // Moment où les morceaux d'un nœud d'origine ont été vus hors de la page pour la première fois
   const sorties = new Map()
 
@@ -46,9 +49,30 @@
     const parcours = document.createTreeWalker(racine, NodeFilter.SHOW_TEXT)
     const noeuds = []
     for (let noeud = parcours.nextNode(); noeud; noeud = parcours.nextNode()) {
-      if (noeud.nodeValue.trim() && !ignore(noeud)) noeuds.push(noeud)
+      // Un morceau déjà suivi (élément déplacé par le site) a été trouvé sur le texte entier : le relire seul pourrait
+      // donner une autre sélection
+      if (noeud.nodeValue.trim() && !ignore(noeud) && !suivi(noeud)) noeuds.push(noeud)
     }
     return noeuds
+  }
+
+  // Copie d'un élément surligné (carrousel en boucle, carte dupliquée) : ses titres et pastilles ne sont pas suivis, et
+  // ne seraient ni retirés à la désactivation ni mis à jour. Ils redeviennent du texte, surligné de nouveau ensuite
+  function defaireCopies(racine) {
+    const copies = [...racine.querySelectorAll(`.${CLASSE_TITRE}, .${CLASSE_PASTILLE}`)]
+    if (racine.matches(`.${CLASSE_TITRE}, .${CLASSE_PASTILLE}`)) copies.unshift(racine)
+    const parents = new Set()
+    for (const copie of copies) {
+      if (suivi(copie) || !copie.parentNode) continue
+      parents.add(copie.parentNode)
+      if (copie.classList.contains(CLASSE_PASTILLE)) copie.remove()
+      else copie.replaceWith(copie.textContent)
+    }
+    // Les textes séparés par la copie sont réunis, pour être cherchés en entier ; seulement dans la copie, et sans
+    // morceau suivi : un framework peut garder des références vers les nœuds de texte de la page
+    for (const parent of parents) {
+      if (racine.contains(parent) && ![...parent.childNodes].some(suivi)) parent.normalize()
+    }
   }
 
   function surlignerNoeud(noeud, prepares) {
@@ -85,7 +109,9 @@
       position = fin
     }
     if (position < texte.length) fragment.append(texte.slice(position))
-    remplacements.set(noeud, [...fragment.childNodes])
+    const morceaux = [...fragment.childNodes]
+    for (const morceau of morceaux) origines.set(morceau, noeud)
+    remplacements.set(noeud, morceaux)
     noeud.replaceWith(fragment)
   }
 
@@ -140,8 +166,9 @@
       // Hors du <body> (<head>, <title>), le texte ne s'affiche pas
       if (!document.body?.contains(noeud)) continue
       if (noeud.nodeType === Node.TEXT_NODE) {
-        if (noeud.nodeValue.trim() && !ignore(noeud)) surlignerNoeud(noeud, prepares)
+        if (noeud.nodeValue.trim() && !ignore(noeud) && !suivi(noeud)) surlignerNoeud(noeud, prepares)
       } else {
+        defaireCopies(noeud)
         for (const texte of noeudsTexte(noeud)) surlignerNoeud(texte, prepares)
       }
     }

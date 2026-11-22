@@ -378,6 +378,43 @@ describe('contenu ajouté après le chargement (règle « surlignage » 10)', ()
     expect(recent.firstChild).toBe(texteRecent)
   })
 
+  it('la copie d’un élément surligné est surlignée de nouveau, puis retirée et mise à jour comme le reste', async () => {
+    document.body.innerHTML = '<ul id="liste"><li>Lire The Boxer ici</li></ul>'
+    surligner([webtoon('The Boxer', { note: 4 })])
+    const liste = document.getElementById('liste')
+    const copie = liste.firstChild.cloneNode(true)
+    liste.append(copie)
+    await apresRegroupement()
+
+    expect(copie.querySelectorAll('.dramatoons-titre')).toHaveLength(1)
+    expect(copie.querySelectorAll('.dramatoons-pastille')).toHaveLength(1)
+    expect(copie.querySelector('.dramatoons-titre').previousSibling.nodeValue).toBe('Lire ')
+
+    // « Rafraîchir » : la copie prend la nouvelle note, comme l'original
+    surligner([webtoon('The Boxer', { note: 5 })])
+    expect(pastilles().map((pastille) => pastille.textContent)).toEqual(['⭐ 5', '⭐ 5'])
+
+    recevoir({ type: 'retirer' })
+    expect(titres()).toHaveLength(0)
+    expect(pastilles()).toHaveLength(0)
+    expect(copie.textContent).toBe('Lire The Boxer ici')
+  })
+
+  it('un élément surligné déplacé par le site n’est pas relu', async () => {
+    document.body.innerHTML = '<ul id="liste"><li id="carte">Lire The Boxer ici</li><li>Autre</li></ul>'
+    surligner([webtoon('The Boxer')])
+    const carte = document.getElementById('carte')
+    const chercher = vi.spyOn(globalThis.DramatoonsCorrespondance, 'chercher')
+
+    document.getElementById('liste').append(carte)
+    await apresRegroupement()
+
+    expect(chercher).not.toHaveBeenCalled()
+    expect(titres()).toHaveLength(1)
+    recevoir({ type: 'retirer' })
+    expect(carte.textContent).toBe('Lire The Boxer ici')
+  })
+
   it('plusieurs ajouts rapprochés ne donnent qu’un seul traitement, et chaque titre une seule fois', async () => {
     document.body.innerHTML = '<ul id="liste"></ul>'
     surligner([webtoon('The Boxer'), webtoon('Solo')])
