@@ -16,7 +16,12 @@
 
   // Chaque nœud de texte remplacé, avec ce qui l'a remplacé : le retrait remet le nœud d'origine lui-même. Un site
   // construit par un framework (React, Vue) garde des références vers ses nœuds de texte, qui doivent rester les mêmes
-  let remplacements = []
+  const remplacements = new Map()
+  // Le nœud d'origine de chaque morceau
+  const origines = new WeakMap()
+  const suivi = (morceau) => remplacements.has(origines.get(morceau))
+  // Moment où les morceaux d'un nœud d'origine ont été vus hors de la page pour la première fois
+  const sorties = new Map()
 
   // !important : une feuille de style de la page ne doit pas rendre le surlignage illisible
   const styler = (element, styles) => {
@@ -44,12 +49,35 @@
     const parcours = document.createTreeWalker(racine, NodeFilter.SHOW_TEXT)
     const noeuds = []
     for (let noeud = parcours.nextNode(); noeud; noeud = parcours.nextNode()) {
-      if (noeud.nodeValue.trim() && !ignore(noeud)) noeuds.push(noeud)
+      // Un morceau déjà suivi (élément déplacé par le site) a été trouvé sur le texte entier : le relire seul pourrait
+      // donner une autre sélection
+      if (noeud.nodeValue.trim() && !ignore(noeud) && !suivi(noeud)) noeuds.push(noeud)
     }
     return noeuds
   }
 
+  // Copie d'un élément surligné (carrousel en boucle, carte dupliquée) : ses titres et pastilles ne sont pas suivis, et
+  // ne seraient ni retirés à la désactivation ni mis à jour. Chaque titre redevient un texte à part, surligné de nouveau
+  // ensuite ; il n'est pas réuni à ses voisins, qui peuvent être des nœuds de texte suivis par un framework.
+  // Renvoie ce qui tient la place de la racine après coup : le texte qui la remplace si c'est elle-même une copie
+  function defaireCopies(racine) {
+    let resultat = racine
+    const copies = [...racine.querySelectorAll(`.${CLASSE_TITRE}, .${CLASSE_PASTILLE}`)]
+    if (racine.matches(`.${CLASSE_TITRE}, .${CLASSE_PASTILLE}`)) copies.unshift(racine)
+    for (const copie of copies) {
+      // Dans un champ de saisie ou une zone éditable, la copie appartient au texte de l'utilisateur
+      if (suivi(copie) || !copie.parentNode || ignore(copie)) continue
+      const texte = copie.classList.contains(CLASSE_PASTILLE) ? null : document.createTextNode(copie.textContent)
+      if (texte) copie.replaceWith(texte)
+      else copie.remove()
+      if (copie === racine) resultat = texte
+    }
+    return resultat
+  }
+
   function surlignerNoeud(noeud, prepares) {
+    // Nœud d'origine remis dans la page par le site, dans un élément ajouté : son ancien surlignage ferait doublon
+    if (remplacements.has(noeud)) restituer(noeud)
     const texte = noeud.nodeValue
     const trouves = globalThis.DramatoonsCorrespondance.chercher(texte, prepares)
     if (trouves.length === 0) return
@@ -83,26 +111,119 @@
       position = fin
     }
     if (position < texte.length) fragment.append(texte.slice(position))
-    remplacements.push({ origine: noeud, morceaux: [...fragment.childNodes] })
+    const morceaux = [...fragment.childNodes]
+    for (const morceau of morceaux) origines.set(morceau, noeud)
+    remplacements.set(noeud, morceaux)
     noeud.replaceWith(fragment)
   }
 
-  function retirer() {
-    for (const { origine, morceaux } of remplacements.reverse()) {
-      // Le nœud d'origine reprend la place du premier morceau encore dans la page ; si la page les a tous retirés,
-      // rien n'est remis
-      morceaux.find((morceau) => morceau.isConnected)?.before(origine)
-      for (const morceau of morceaux) morceau.remove()
+  function oublier(origine) {
+    remplacements.delete(origine)
+    sorties.delete(origine)
+  }
+
+  function restituer(origine) {
+    const morceaux = remplacements.get(origine)
+    oublier(origine)
+    // Le nœud d'origine reprend la place du premier morceau qui a encore un parent, même hors de la page : le site
+    // peut remettre cet élément plus tard. Si le site a jeté tous les morceaux, rien n'est remis ; s'il a remis
+    // lui-même le nœud d'origine ailleurs, il y reste
+    if (!origine.parentNode) morceaux.find((morceau) => morceau.parentNode)?.before(origine)
+    for (const morceau of morceaux) morceau.remove()
+  }
+
+  // Contenu ajouté ou modifié après le surlignage (défilement infini, page suivante sans rechargement, éléments
+  // recyclés) : les modifications sont regroupées et traitées après DELAI_MS sans nouvelle modification, en ne
+  // relisant que les textes concernés. DELAI_MAX_MS plafonne l'attente : une page qui change sans arrêt (compteur,
+  // lecteur vidéo) repousserait sinon le traitement indéfiniment
+  const DELAI_MS = 300
+  const DELAI_MAX_MS = 1000
+  const OUBLI_MS = 60_000
+  let prepares = null
+  let observateur = null
+  let minuterie = null
+  let plafond = null
+  const enAttente = new Set()
+
+  function annulerMinuteries() {
+    clearTimeout(minuterie)
+    clearTimeout(plafond)
+    minuterie = null
+    plafond = null
+  }
+
+  function observer() {
+    // <html> plutôt que <body> : certains sites remplacent tout le <body> pour afficher la page suivante
+    observateur.observe(document.documentElement, { childList: true, subtree: true, characterData: true })
+    // Un framework qui recycle un élément modifie le nœud d'origine, sorti de la page : sans cela, l'ancien titre
+    // surligné resterait affiché à la place du nouveau texte
+    for (const origine of remplacements.keys()) observateur.observe(origine, { characterData: true })
+  }
+
+  function traiterEnAttente() {
+    annulerMinuteries()
+    // Les modifications faites ici par l'extension ne doivent pas relancer un traitement
+    observateur.disconnect()
+    for (const noeud of enAttente) {
+      if (remplacements.has(noeud)) restituer(noeud)
+      // Hors du <body> (<head>, <title>), le texte ne s'affiche pas
+      if (!document.body?.contains(noeud)) continue
+      const racine = noeud.nodeType === Node.ELEMENT_NODE ? defaireCopies(noeud) : noeud
+      if (racine?.nodeType === Node.TEXT_NODE) {
+        if (racine.nodeValue.trim() && !ignore(racine) && !suivi(racine)) surlignerNoeud(racine, prepares)
+      } else if (racine) {
+        for (const texte of noeudsTexte(racine)) surlignerNoeud(texte, prepares)
+      }
     }
-    remplacements = []
+    enAttente.clear()
+    // Morceaux tous retirés par le site : il a jeté ce texte, et ne le remettra pas. Un morceau dont seul un ancêtre
+    // est sorti de la page garde son parent : le site peut remettre cet ancêtre, mais au-delà de OUBLI_MS hors de la
+    // page, l'entrée est oubliée, pour que la mémoire et le coût de chaque traitement ne grandissent pas sans fin
+    const maintenant = Date.now()
+    for (const [origine, morceaux] of remplacements) {
+      if (morceaux.every((morceau) => !morceau.parentNode)) oublier(origine)
+      else if (morceaux.some((morceau) => morceau.isConnected)) sorties.delete(origine)
+      else if (!sorties.has(origine)) sorties.set(origine, maintenant)
+      else if (maintenant - sorties.get(origine) >= OUBLI_MS) oublier(origine)
+    }
+    observer()
+  }
+
+  function surveiller() {
+    observateur = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.type === 'characterData') enAttente.add(mutation.target)
+        else for (const ajoute of mutation.addedNodes) enAttente.add(ajoute)
+      }
+      if (enAttente.size === 0) return
+      clearTimeout(minuterie)
+      minuterie = setTimeout(traiterEnAttente, DELAI_MS)
+      plafond ??= setTimeout(traiterEnAttente, DELAI_MAX_MS)
+    })
+    observer()
+  }
+
+  function arreterSurveillance() {
+    observateur?.disconnect()
+    observateur = null
+    annulerMinuteries()
+    enAttente.clear()
+    // La liste de l'utilisateur ne reste pas dans la page après une désactivation ou une déconnexion
+    prepares = null
+  }
+
+  function retirer() {
+    arreterSurveillance()
+    for (const origine of [...remplacements.keys()].reverse()) restituer(origine)
   }
 
   function surligner(liste) {
     retirer()
     // Document sans <body> (fichier SVG ou XML ouvert directement) : rien à surligner
     if (!document.body) return
-    const prepares = globalThis.DramatoonsCorrespondance.preparer(liste)
+    prepares = globalThis.DramatoonsCorrespondance.preparer(liste)
     for (const noeud of noeudsTexte(document.body)) surlignerNoeud(noeud, prepares)
+    surveiller()
   }
 
   chrome.runtime.onMessage.addListener((message) => {
@@ -110,5 +231,7 @@
     else if (message?.type === 'retirer') retirer()
   })
 
-  globalThis.DramatoonsSurlignage = { surligner, retirer }
+  const listeGardee = () => prepares !== null
+
+  globalThis.DramatoonsSurlignage = { surligner, retirer, listeGardee, DELAI_MS, DELAI_MAX_MS, OUBLI_MS }
 })()
