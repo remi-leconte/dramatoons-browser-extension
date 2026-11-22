@@ -17,6 +17,8 @@
   // Chaque nœud de texte remplacé, avec ce qui l'a remplacé : le retrait remet le nœud d'origine lui-même. Un site
   // construit par un framework (React, Vue) garde des références vers ses nœuds de texte, qui doivent rester les mêmes
   const remplacements = new Map()
+  // Moment où les morceaux d'un nœud d'origine ont été vus hors de la page pour la première fois
+  const sorties = new Map()
 
   // !important : une feuille de style de la page ne doit pas rendre le surlignage illisible
   const styler = (element, styles) => {
@@ -87,9 +89,14 @@
     noeud.replaceWith(fragment)
   }
 
+  function oublier(origine) {
+    remplacements.delete(origine)
+    sorties.delete(origine)
+  }
+
   function restituer(origine) {
     const morceaux = remplacements.get(origine)
-    remplacements.delete(origine)
+    oublier(origine)
     // Le nœud d'origine reprend la place du premier morceau qui a encore un parent, même hors de la page : le site
     // peut remettre cet élément plus tard. Si le site a jeté tous les morceaux, rien n'est remis
     morceaux.find((morceau) => morceau.parentNode)?.before(origine)
@@ -102,6 +109,7 @@
   // lecteur vidéo) repousserait sinon le traitement indéfiniment
   const DELAI_MS = 300
   const DELAI_MAX_MS = 1000
+  const OUBLI_MS = 60_000
   let prepares = null
   let observateur = null
   let minuterie = null
@@ -139,9 +147,14 @@
     }
     enAttente.clear()
     // Morceaux tous retirés par le site : il a jeté ce texte, et ne le remettra pas. Un morceau dont seul un ancêtre
-    // est sorti de la page garde son parent, et l'entrée reste : le site peut remettre cet ancêtre
+    // est sorti de la page garde son parent : le site peut remettre cet ancêtre, mais au-delà de OUBLI_MS hors de la
+    // page, l'entrée est oubliée, pour que la mémoire et le coût de chaque traitement ne grandissent pas sans fin
+    const maintenant = Date.now()
     for (const [origine, morceaux] of remplacements) {
-      if (morceaux.every((morceau) => !morceau.parentNode)) remplacements.delete(origine)
+      if (morceaux.every((morceau) => !morceau.parentNode)) oublier(origine)
+      else if (morceaux.some((morceau) => morceau.isConnected)) sorties.delete(origine)
+      else if (!sorties.has(origine)) sorties.set(origine, maintenant)
+      else if (maintenant - sorties.get(origine) >= OUBLI_MS) oublier(origine)
     }
     observer()
   }
@@ -186,5 +199,5 @@
     else if (message?.type === 'retirer') retirer()
   })
 
-  globalThis.DramatoonsSurlignage = { surligner, retirer, DELAI_MS, DELAI_MAX_MS }
+  globalThis.DramatoonsSurlignage = { surligner, retirer, DELAI_MS, DELAI_MAX_MS, OUBLI_MS }
 })()

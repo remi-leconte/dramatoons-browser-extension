@@ -196,7 +196,7 @@ describe('contenu ajouté après le chargement (règle « surlignage » 10)', ()
   }
 
   beforeEach(() => {
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
   })
 
   afterEach(() => {
@@ -345,6 +345,35 @@ describe('contenu ajouté après le chargement (règle « surlignage » 10)', ()
     zone.append(retire)
     expect(retire.firstChild).toBe(texteRetire)
     expect(retire.textContent).toBe('The Boxer')
+  })
+
+  it('un élément resté hors de la page plus longtemps que le délai d’oubli n’est plus suivi', async () => {
+    document.body.innerHTML = '<p id="ancien">The Boxer</p><p id="recent">The Boxer</p><ul id="liste"></ul>'
+    const ancien = document.getElementById('ancien')
+    const recent = document.getElementById('recent')
+    const texteAncien = ancien.firstChild
+    const texteRecent = recent.firstChild
+    surligner([webtoon('The Boxer')])
+    const moitie = globalThis.DramatoonsSurlignage.OUBLI_MS / 2
+    const ajouter = async () => {
+      document.getElementById('liste').append(document.createElement('li'))
+      await apresRegroupement()
+    }
+
+    ancien.remove()
+    await ajouter()
+    await vi.advanceTimersByTimeAsync(moitie)
+    recent.remove()
+    await ajouter()
+    await vi.advanceTimersByTimeAsync(moitie)
+    await ajouter()
+
+    texteAncien.nodeValue = 'Rien'
+    await Promise.resolve()
+    expect(vi.getTimerCount()).toBe(0)
+    texteRecent.nodeValue = 'Rien à voir'
+    await apresRegroupement()
+    expect(recent.firstChild).toBe(texteRecent)
   })
 
   it('plusieurs ajouts rapprochés ne donnent qu’un seul traitement, et chaque titre une seule fois', async () => {
