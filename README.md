@@ -11,9 +11,9 @@ Extension de navigateur de [Dramatoons](https://dramatoons.ovh), un site de suiv
 ## Fonctionnalités
 
 - **Connexion** avec son compte Dramatoons, depuis la fenêtre de l'extension. La session est gardée à la fermeture du navigateur et se prolonge seule, comme sur le site.
-- **Activation onglet par onglet** : un interrupteur dans la fenêtre. Un onglet activé le reste quand on y change de page ; un onglet désactivé ne reçoit rien, ni script ni appel à l'API.
+- **Activation onglet par onglet** : un interrupteur dans la fenêtre. Un onglet activé le reste quand on y change de page ; un onglet désactivé ne reçoit aucun script injecté et ne fait aucun appel à l'API.
 - **Surlignage des titres**, principaux et alternatifs, sans tenir compte de la casse, des accents ni de la ponctuation, et seulement sur des mots entiers. Un titre tronqué par le site (« Solo Leveling: Rag… ») est reconnu.
-- **Couleur selon l'état du suivi**, celles du site : en cours en bleu, en pause en orange, pas intéressé en rouge, terminé en vert. Une pastille « ⭐ note 📌 chapitre » suit chaque titre, et le même texte s'affiche au survol.
+- **Couleur selon l'état du suivi**, celles du site : en cours en bleu, en pause en orange, pas intéressé en rouge, terminé en vert, et gris sans état. Une pastille « ⭐ note 📌 chapitre » suit le titre, et le même texte s'affiche au survol ; seules les valeurs présentes y figurent, et un webtoon sans note ni chapitre n'a ni pastille ni infobulle.
 - **Pages qui changent** : le contenu ajouté après le chargement (défilement infini, page suivante sans rechargement) est surligné au fur et à mesure.
 - **Rafraîchir** : après un changement sur le site (nouveau suivi, note, chapitre), un bouton recharge la bibliothèque et surligne de nouveau la page.
 
@@ -43,6 +43,8 @@ Si l'accès aux sites est refusé ou retiré dans les réglages du navigateur, l
 - Un titre découpé entre plusieurs éléments de la page (une partie en gras, par exemple) n'est pas reconnu.
 - Seul le cadre principal de la page est surligné, pas ses iframes (widget de commentaires, lecteur intégré).
 - Un document sans page HTML (fichier SVG ou XML affiché seul) n'est pas surligné.
+- Dans la copie d'un élément surligné (carrousel en boucle, carte dupliquée), un titre tronqué est séparé de ses points de suspension : il peut n'être pas surligné, ou l'être comme un webtoon au titre plus court.
+- Un élément que le site retire de la page plus d'une minute, puis y remet et réutilise pour un autre texte, peut continuer d'afficher l'ancien texte.
 - Un titre fait d'un mot courant (« Love », « Home ») est surligné partout où ce mot apparaît.
 
 ## Technologies et architecture
@@ -77,7 +79,7 @@ Après une modification, recharger l'extension depuis la même page, puis l'ongl
 ## Qualité
 
 - **Tests** : Vitest, sur la session et ses renouvellements, l'activation des onglets, la correspondance des titres, le surlignage et son retrait (y compris les pages qui changent), la fenêtre et la construction du zip de production. Ils tournent dans un DOM simulé (happy-dom), avec une API `chrome` simulée, et ne contactent jamais l'API.
-- **Vérifications** : validité du manifeste et des fichiers qu'il référence, syntaxe de chaque fichier JavaScript, et `web-ext lint`, le validateur de Mozilla, sans aucun avertissement toléré, sur `src/` et sur la copie de production.
+- **Vérifications** : validité du manifeste et des fichiers qu'il référence, syntaxe de chaque fichier JavaScript, et `web-ext lint`, le validateur de Mozilla, sur `src/` et sur la copie de production : tout avertissement fait échouer la CI, sauf celui de la clé `service_worker`, que Firefox ignore volontairement parce qu'elle sert à Chrome et Edge.
 - **Intégration continue** (GitHub Actions) : vérifications, construction du zip et tests sur chaque pull request. Une relecture par IA relit en plus chaque pull request, en priorité sur la sécurité et les règles métier ; la moindre remarque la bloque.
 
 ```sh
