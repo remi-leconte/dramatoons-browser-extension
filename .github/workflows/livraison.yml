@@ -40,9 +40,11 @@ jobs:
             echo "::error::Le tag $tag n'est pas de la forme vX.Y.Z : rien n'est livré"
             exit 1
           fi
-          # Seul un commit déjà fusionné dans main, donc relu, est livré
-          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
-            echo "::error::Le tag $tag n'est pas sur main : rien n'est livré"
+          # Seul un commit posé directement sur main (fusion d'une PR, donc relue) est livré : un commit intermédiaire
+          # d'une branche fusionnée est un ancêtre de main, mais n'a pas été relu tel quel
+          # grep sans -q lit toute la liste : arrêté plus tôt, il ferait échouer git rev-list avec pipefail
+          if ! git rev-list --first-parent origin/main | grep -x "$GITHUB_SHA" >/dev/null; then
+            echo "::error::Le tag $tag n'est pas posé directement sur main : rien n'est livré"
             exit 1
           fi
           version=$(node -p "require('./src/manifest.json').version")
