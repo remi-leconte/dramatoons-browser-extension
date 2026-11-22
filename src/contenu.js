@@ -138,6 +138,11 @@
       }
     }
     enAttente.clear()
+    // Morceaux tous retirés par le site : il a jeté ce texte, et ne le remettra pas. Un morceau dont seul un ancêtre
+    // est sorti de la page garde son parent, et l'entrée reste : le site peut remettre cet ancêtre
+    for (const [origine, morceaux] of remplacements) {
+      if (morceaux.every((morceau) => !morceau.parentNode)) remplacements.delete(origine)
+    }
     observer()
   }
 

@@ -299,6 +299,30 @@ describe('contenu ajouté après le chargement (règle « surlignage » 10)', ()
     expect(titres().map((titre) => titre.textContent)).toEqual(['The Boxer'])
   })
 
+  it('un surlignage jeté par le site n’est plus suivi, mais il l’est encore si seul son élément est sorti', async () => {
+    document.body.innerHTML = '<p id="jete">The Boxer</p><div id="zone"><p id="sorti">The Boxer</p></div>'
+    const jete = document.getElementById('jete')
+    const sorti = document.getElementById('sorti')
+    const texteJete = jete.firstChild
+    const texteSorti = sorti.firstChild
+    surligner([webtoon('The Boxer')])
+
+    // Recyclage façon React : le contenu de l'élément est remplacé, ses enfants (les morceaux) sont jetés
+    jete.textContent = 'Autre chose'
+    sorti.remove()
+    await apresRegroupement()
+
+    texteJete.nodeValue = 'Rien'
+    await Promise.resolve()
+    expect(vi.getTimerCount()).toBe(0)
+
+    document.getElementById('zone').append(sorti)
+    texteSorti.nodeValue = 'Rien à voir'
+    await apresRegroupement()
+    expect(sorti.firstChild).toBe(texteSorti)
+    expect(sorti.textContent).toBe('Rien à voir')
+  })
+
   it('plusieurs ajouts rapprochés ne donnent qu’un seul traitement, et chaque titre une seule fois', async () => {
     document.body.innerHTML = '<ul id="liste"></ul>'
     surligner([webtoon('The Boxer'), webtoon('Solo')])
