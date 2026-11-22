@@ -21,7 +21,10 @@ Le surlignage ne change rien d'autre à la page : les liens fonctionnent toujour
 
 ## Navigateurs
 
-Firefox, Chrome et Edge, avec un seul code et un seul zip (Manifest V3). L'extension remplace les anciennes extensions [Firefox](https://github.com/remi-leconte/dramatoons-extension-firefox) et [Chromium](https://github.com/remi-leconte/dramatoons-extension-chromium) (version 2.x) ; sur Firefox, elle reprend leur fiche, et chaque version arrive comme une mise à jour.
+Firefox, Chrome, Edge et tous les navigateurs basés sur Chromium (Brave, notamment), avec un seul code et un seul zip (Manifest V3).
+
+- **Firefox et Edge** : depuis leur store, avec mises à jour automatiques.
+- **Chrome, Brave et les autres navigateurs Chromium** : installation manuelle depuis le zip de la [dernière release](https://github.com/remi-leconte/dramatoons-browser-extension/releases/latest), décrite pas à pas par le [tutoriel du site](https://dramatoons.ovh/install-tutorial). Une extension installée ainsi ne se met pas à jour seule.
 
 ## Vie privée et permissions
 
@@ -89,7 +92,7 @@ docker compose run --rm node npm test     # tests
 
 ## Livraison
 
-`npm run build` construit le zip de production dans `dist/` : une copie de `src/` qui appelle l'API de production, refusée s'il y reste une adresse du développement. Un tag `vX.Y.Z` posé sur `main` relance les vérifications et les tests, puis joint ce zip à la release GitHub du tag. Le même zip est ensuite envoyé à la main sur les stores de Mozilla, Chrome et Edge. Le détail est dans les sections « Zip de production » et « Livraison » du [`CLAUDE.md`](CLAUDE.md).
+`npm run build` construit le zip de production dans `dist/` : une copie de `src/` qui appelle l'API de production, refusée s'il y reste une adresse du développement. Un tag `vX.Y.Z` posé sur `main` relance les vérifications et les tests, puis joint ce zip à la release GitHub du tag. Le même zip est ensuite envoyé à la main sur les stores de Mozilla et d'Edge ; sur Chrome et les autres navigateurs Chromium, il s'installe à la main. Le détail est dans les sections « Zip de production » et « Livraison » du [`CLAUDE.md`](CLAUDE.md).
 
 ## Projet Dramatoons
 
@@ -97,9 +100,7 @@ docker compose run --rm node npm test     # tests
 | --- | --- |
 | [dramatoons-api](https://github.com/remi-leconte/dramatoons-api) | API REST (Symfony, API Platform) |
 | [dramatoons-front](https://github.com/remi-leconte/dramatoons-front) | Site web (Vue 3, TypeScript) |
-| [dramatoons-browser-extension](https://github.com/remi-leconte/dramatoons-browser-extension) | Extension pour Firefox, Chrome et Edge (ce dépôt) |
-| [dramatoons-extension-chromium](https://github.com/remi-leconte/dramatoons-extension-chromium) | Ancienne extension pour les navigateurs Chromium (2.x) |
-| [dramatoons-extension-firefox](https://github.com/remi-leconte/dramatoons-extension-firefox) | Ancienne extension Firefox (2.x) |
+| [dramatoons-browser-extension](https://github.com/remi-leconte/dramatoons-browser-extension) | Extension pour Firefox et les navigateurs Chromium (ce dépôt) |
 | [dramatoons-workspace](https://github.com/remi-leconte/dramatoons-workspace) | Espace de travail commun : méthode de travail avec Claude Code, règles métier, workflow |
 
 ## Licence
