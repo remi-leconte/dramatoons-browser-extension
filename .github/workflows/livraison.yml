@@ -14,13 +14,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  release:
-    name: Release
+  construction:
+    name: Construction
     runs-on: ubuntu-24.04
     permissions:
-      contents: write
+      contents: read
     steps:
-      # Jeton en écriture : actions épinglées sur un commit
+      # Le zip construit ici est publié : actions épinglées sur un commit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
@@ -29,7 +29,7 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
-          # Le cache npm est partagé avec les runs des PR : jamais dans ce job, qui a un jeton en écriture
+          # Pas de cache npm : le zip publié ne dépend que du lockfile, installé à neuf
           package-manager-cache: false
 
       - name: Tag et version
@@ -57,8 +57,26 @@ jobs:
 
       - run: npm test
 
-      - name: Release GitHub
-        shell: bash
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: zip
+          path: dist/dramatoons-highlighter-*.zip
+          if-no-files-found: error
+
+  publication:
+    name: Release GitHub
+    needs: construction
+    runs-on: ubuntu-24.04
+    # Seul job en écriture : il n'installe rien et n'exécute aucun code du dépôt ni de ses dépendances
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: zip
+          path: dist
+
+      - shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
