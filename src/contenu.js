@@ -90,9 +90,9 @@
   function restituer(origine) {
     const morceaux = remplacements.get(origine)
     remplacements.delete(origine)
-    // Le nœud d'origine reprend la place du premier morceau encore dans la page ; si la page les a tous retirés,
-    // rien n'est remis
-    morceaux.find((morceau) => morceau.isConnected)?.before(origine)
+    // Le nœud d'origine reprend la place du premier morceau qui a encore un parent, même hors de la page : le site
+    // peut remettre cet élément plus tard. Si le site a jeté tous les morceaux, rien n'est remis
+    morceaux.find((morceau) => morceau.parentNode)?.before(origine)
     for (const morceau of morceaux) morceau.remove()
   }
 

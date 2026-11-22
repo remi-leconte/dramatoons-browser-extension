@@ -323,6 +323,30 @@ describe('contenu ajouté après le chargement (règle « surlignage » 10)', ()
     expect(sorti.textContent).toBe('Rien à voir')
   })
 
+  it('un élément sorti de la page retrouve son texte quand le site le remet, après un retrait ou un recyclage', async () => {
+    document.body.innerHTML = '<div id="zone"><p id="retire">The Boxer</p><p id="recycle">The Boxer</p></div>'
+    const zone = document.getElementById('zone')
+    const retire = document.getElementById('retire')
+    const recycle = document.getElementById('recycle')
+    const texteRetire = retire.firstChild
+    const texteRecycle = recycle.firstChild
+    surligner([webtoon('The Boxer')])
+
+    // Recyclage hors de la page, traité avant que l'élément revienne
+    recycle.remove()
+    texteRecycle.nodeValue = 'Rien à voir'
+    await apresRegroupement()
+    zone.append(recycle)
+    expect(recycle.textContent).toBe('Rien à voir')
+
+    // Retrait du surlignage (désactivation) pendant que l'élément est hors de la page
+    retire.remove()
+    recevoir({ type: 'retirer' })
+    zone.append(retire)
+    expect(retire.firstChild).toBe(texteRetire)
+    expect(retire.textContent).toBe('The Boxer')
+  })
+
   it('plusieurs ajouts rapprochés ne donnent qu’un seul traitement, et chaque titre une seule fois', async () => {
     document.body.innerHTML = '<ul id="liste"></ul>'
     surligner([webtoon('The Boxer'), webtoon('Solo')])
