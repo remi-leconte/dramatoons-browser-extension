@@ -5,7 +5,8 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
-    "ci": "node scripts/verifier.mjs && node scripts/lint-firefox.mjs",
+    "ci": "node scripts/verifier.mjs && node scripts/lint-firefox.mjs && node scripts/construire.mjs && node scripts/lint-firefox.mjs dist/src",
+    "build": "node scripts/construire.mjs",
     "test": "vitest run --passWithNoTests"
   },
   "devDependencies": {

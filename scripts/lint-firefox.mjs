@@ -4,7 +4,9 @@ import { spawnSync } from 'node:child_process'
 
 const ATTENDUS = new Set(['BACKGROUND_SERVICE_WORKER_IGNORED'])
 
-const lint = spawnSync('npx', ['web-ext', 'lint', '--source-dir', 'src', '--output', 'json'], {
+// Dossier vérifié : src/ par défaut, ou la copie de production (dist/src) passée en argument
+const dossier = process.argv[2] ?? 'src'
+const lint = spawnSync('npx', ['web-ext', 'lint', '--source-dir', dossier, '--output', 'json'], {
   encoding: 'utf8',
 })
 let rapport
@@ -18,4 +20,4 @@ try {
 const problemes = [...rapport.errors, ...rapport.warnings.filter((avertissement) => !ATTENDUS.has(avertissement.code))]
 for (const probleme of problemes) console.error(`${probleme.code} : ${probleme.message} (${probleme.file ?? ''})`)
 if (problemes.length > 0) process.exit(1)
-console.log(`web-ext lint : aucune erreur, aucun avertissement inattendu (${rapport.notices.length} notice(s))`)
+console.log(`web-ext lint ${dossier} : aucune erreur, aucun avertissement inattendu (${rapport.notices.length} notice(s))`)

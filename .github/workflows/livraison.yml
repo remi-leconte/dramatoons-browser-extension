@@ -1,0 +1,66 @@
+name: Livraison
+
+# Tag vX.Y.Z posé sur main : le zip de production est construit et joint à la release GitHub du tag.
+# L'envoi sur les stores reste manuel, depuis ce zip
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions: {}
+
+concurrency:
+  group: livraison
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Release
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      # Jeton en écriture : actions épinglées sur un commit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+
+      - name: Tag et version
+        shell: bash
+        run: |
+          tag=$GITHUB_REF_NAME
+          if ! [[ $tag =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Le tag $tag n'est pas de la forme vX.Y.Z : rien n'est livré"
+            exit 1
+          fi
+          # Seul un commit déjà fusionné dans main, donc relu, est livré
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::Le tag $tag n'est pas sur main : rien n'est livré"
+            exit 1
+          fi
+          version=$(node -p "require('./src/manifest.json').version")
+          if [[ v$version != "$tag" ]]; then
+            echo "::error::Le tag $tag ne correspond pas à la version du manifeste ($version) : rien n'est livré"
+            exit 1
+          fi
+
+      # Sans cache npm : le job a un jeton en écriture, et le cache est partagé avec les runs des PR
+      - run: npm ci
+
+      - run: npm run ci
+
+      - run: npm test
+
+      - name: Release GitHub
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/dramatoons-highlighter-*.zip \
+            --verify-tag --title "$GITHUB_REF_NAME" --generate-notes
