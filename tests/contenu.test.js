@@ -456,6 +456,19 @@ describe('contenu ajouté après le chargement (règle « surlignage » 10)', ()
     expect(copie.children).toHaveLength(0)
   })
 
+  it('un titre surligné copié dans une zone éditable reste tel quel', async () => {
+    document.body.innerHTML = '<p id="source">The Boxer</p><div contenteditable="true" id="zone"></div>'
+    surligner([webtoon('The Boxer', { note: 4 })])
+    const zone = document.getElementById('zone')
+    zone.append(document.getElementById('source').cloneNode(true))
+    const avant = zone.innerHTML
+
+    await apresRegroupement()
+
+    expect(zone.innerHTML).toBe(avant)
+    expect(zone.querySelector('.dramatoons-pastille').textContent).toBe('⭐ 4')
+  })
+
   it('plusieurs ajouts rapprochés ne donnent qu’un seul traitement, et chaque titre une seule fois', async () => {
     document.body.innerHTML = '<ul id="liste"></ul>'
     surligner([webtoon('The Boxer'), webtoon('Solo')])

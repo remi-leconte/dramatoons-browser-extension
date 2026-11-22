@@ -65,7 +65,8 @@
     if (racine.matches(`.${CLASSE_TITRE}, .${CLASSE_PASTILLE}`)) copies.unshift(racine)
     const parents = new Set()
     for (const copie of copies) {
-      if (suivi(copie) || !copie.parentNode) continue
+      // Dans un champ de saisie ou une zone éditable, la copie appartient au texte de l'utilisateur
+      if (suivi(copie) || !copie.parentNode || ignore(copie)) continue
       parents.add(copie.parentNode)
       const texte = copie.classList.contains(CLASSE_PASTILLE) ? null : document.createTextNode(copie.textContent)
       if (texte) copie.replaceWith(texte)
