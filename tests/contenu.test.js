@@ -415,6 +415,32 @@ describe('contenu ajouté après le chargement (règle « surlignage » 10)', ()
     expect(carte.textContent).toBe('Lire The Boxer ici')
   })
 
+  it('un élément remis après le délai d’oubli est surligné de nouveau, et retiré comme le reste', async () => {
+    document.body.innerHTML = '<p id="sorti">The Boxer</p><ul id="liste"></ul>'
+    const sorti = document.getElementById('sorti')
+    const texteSorti = sorti.firstChild
+    surligner([webtoon('The Boxer', { note: 4 })])
+    const ajouter = async () => {
+      document.getElementById('liste').append(document.createElement('li'))
+      await apresRegroupement()
+    }
+    sorti.remove()
+    await ajouter()
+    await vi.advanceTimersByTimeAsync(globalThis.DramatoonsSurlignage.OUBLI_MS)
+    await ajouter()
+
+    document.body.prepend(sorti)
+    await apresRegroupement()
+    expect(sorti.querySelector('.dramatoons-titre').textContent).toBe('The Boxer')
+    expect(sorti.querySelector('.dramatoons-pastille').textContent).toBe('⭐ 4')
+
+    recevoir({ type: 'retirer' })
+    expect(sorti.textContent).toBe('The Boxer')
+    expect(sorti.children).toHaveLength(0)
+    // Limite : le nœud d'origine, que garde le framework, n'est plus celui de la page
+    expect(texteSorti.isConnected).toBe(false)
+  })
+
   it('plusieurs ajouts rapprochés ne donnent qu’un seul traitement, et chaque titre une seule fois', async () => {
     document.body.innerHTML = '<ul id="liste"></ul>'
     surligner([webtoon('The Boxer'), webtoon('Solo')])
