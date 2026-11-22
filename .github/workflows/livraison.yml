@@ -29,6 +29,8 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
+          # Le cache npm est partagé avec les runs des PR : jamais dans ce job, qui a un jeton en écriture
+          package-manager-cache: false
 
       - name: Tag et version
         shell: bash
@@ -49,7 +51,6 @@ jobs:
             exit 1
           fi
 
-      # Sans cache npm : le job a un jeton en écriture, et le cache est partagé avec les runs des PR
       - run: npm ci
 
       - run: npm run ci
