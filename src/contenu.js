@@ -57,22 +57,27 @@
   }
 
   // Copie d'un élément surligné (carrousel en boucle, carte dupliquée) : ses titres et pastilles ne sont pas suivis, et
-  // ne seraient ni retirés à la désactivation ni mis à jour. Ils redeviennent du texte, surligné de nouveau ensuite
+  // ne seraient ni retirés à la désactivation ni mis à jour. Ils redeviennent du texte, surligné de nouveau ensuite.
+  // Renvoie ce qui tient la place de la racine après coup : le texte qui la remplace si c'est elle-même une copie
   function defaireCopies(racine) {
+    let resultat = racine
     const copies = [...racine.querySelectorAll(`.${CLASSE_TITRE}, .${CLASSE_PASTILLE}`)]
     if (racine.matches(`.${CLASSE_TITRE}, .${CLASSE_PASTILLE}`)) copies.unshift(racine)
     const parents = new Set()
     for (const copie of copies) {
       if (suivi(copie) || !copie.parentNode) continue
       parents.add(copie.parentNode)
-      if (copie.classList.contains(CLASSE_PASTILLE)) copie.remove()
-      else copie.replaceWith(copie.textContent)
+      const texte = copie.classList.contains(CLASSE_PASTILLE) ? null : document.createTextNode(copie.textContent)
+      if (texte) copie.replaceWith(texte)
+      else copie.remove()
+      if (copie === racine) resultat = texte
     }
     // Les textes séparés par la copie sont réunis, pour être cherchés en entier ; seulement dans la copie, et sans
     // morceau suivi : un framework peut garder des références vers les nœuds de texte de la page
     for (const parent of parents) {
       if (racine.contains(parent) && ![...parent.childNodes].some(suivi)) parent.normalize()
     }
+    return resultat
   }
 
   function surlignerNoeud(noeud, prepares) {
@@ -165,11 +170,11 @@
       if (remplacements.has(noeud)) restituer(noeud)
       // Hors du <body> (<head>, <title>), le texte ne s'affiche pas
       if (!document.body?.contains(noeud)) continue
-      if (noeud.nodeType === Node.TEXT_NODE) {
-        if (noeud.nodeValue.trim() && !ignore(noeud) && !suivi(noeud)) surlignerNoeud(noeud, prepares)
-      } else {
-        defaireCopies(noeud)
-        for (const texte of noeudsTexte(noeud)) surlignerNoeud(texte, prepares)
+      const racine = noeud.nodeType === Node.ELEMENT_NODE ? defaireCopies(noeud) : noeud
+      if (racine?.nodeType === Node.TEXT_NODE) {
+        if (racine.nodeValue.trim() && !ignore(racine) && !suivi(racine)) surlignerNoeud(racine, prepares)
+      } else if (racine) {
+        for (const texte of noeudsTexte(racine)) surlignerNoeud(texte, prepares)
       }
     }
     enAttente.clear()

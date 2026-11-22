@@ -441,6 +441,21 @@ describe('contenu ajouté après le chargement (règle « surlignage » 10)', ()
     expect(texteSorti.isConnected).toBe(false)
   })
 
+  it('la copie d’un titre surligné seul est surlignée de nouveau', async () => {
+    document.body.innerHTML = '<p>The Boxer</p><p id="copie"></p>'
+    surligner([webtoon('The Boxer', { note: 4 })])
+    const copie = document.getElementById('copie')
+
+    copie.append(document.querySelector('.dramatoons-titre').cloneNode(true))
+    await apresRegroupement()
+    expect(copie.querySelector('.dramatoons-titre').textContent).toBe('The Boxer')
+    expect(copie.querySelector('.dramatoons-pastille').textContent).toBe('⭐ 4')
+
+    recevoir({ type: 'retirer' })
+    expect(copie.textContent).toBe('The Boxer')
+    expect(copie.children).toHaveLength(0)
+  })
+
   it('plusieurs ajouts rapprochés ne donnent qu’un seul traitement, et chaque titre une seule fois', async () => {
     document.body.innerHTML = '<ul id="liste"></ul>'
     surligner([webtoon('The Boxer'), webtoon('Solo')])
