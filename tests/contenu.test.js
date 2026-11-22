@@ -202,6 +202,8 @@ describe('contenu ajouté après le chargement (règle « surlignage » 10)', ()
   afterEach(() => {
     recevoir({ type: 'retirer' })
     vi.useRealTimers()
+    // Un test en échec ne doit pas laisser son espion au test suivant
+    vi.restoreAllMocks()
   })
 
   it('un élément ajouté après le surlignage est surligné, après le délai de regroupement', async () => {
@@ -433,7 +435,6 @@ describe('contenu ajouté après le chargement (règle « surlignage » 10)', ()
     await apresRegroupement()
 
     expect(chercher.mock.calls.map(([texte]) => texte)).toEqual(['The Boxer'])
-    chercher.mockRestore()
   })
 
   it('après le retrait, plus rien n’est surveillé (désactivation, déconnexion)', async () => {
