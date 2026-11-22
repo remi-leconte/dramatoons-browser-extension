@@ -76,6 +76,8 @@
   }
 
   function surlignerNoeud(noeud, prepares) {
+    // Nœud d'origine remis dans la page par le site, dans un élément ajouté : son ancien surlignage ferait doublon
+    if (remplacements.has(noeud)) restituer(noeud)
     const texte = noeud.nodeValue
     const trouves = globalThis.DramatoonsCorrespondance.chercher(texte, prepares)
     if (trouves.length === 0) return

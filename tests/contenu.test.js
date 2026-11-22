@@ -519,6 +519,26 @@ describe('contenu ajouté après le chargement (règle « surlignage » 10)', ()
     expect([...site.childNodes]).toEqual([debut, fin])
   })
 
+  it('un nœud d’origine remis par le site dans un nouvel élément n’est surligné qu’une fois', async () => {
+    document.body.innerHTML = '<p id="avant">The Boxer</p><div id="zone"></div>'
+    const avant = document.getElementById('avant')
+    const texte = avant.firstChild
+    surligner([webtoon('The Boxer', { note: 4 })])
+
+    const nouveau = document.createElement('p')
+    nouveau.append(texte)
+    document.getElementById('zone').append(nouveau)
+    await apresRegroupement()
+
+    expect(titres()).toHaveLength(1)
+    expect(pastilles()).toHaveLength(1)
+    expect(avant.childNodes).toHaveLength(0)
+    recevoir({ type: 'retirer' })
+    expect(titres()).toHaveLength(0)
+    expect(pastilles()).toHaveLength(0)
+    expect(nouveau.firstChild).toBe(texte)
+  })
+
   it('plusieurs ajouts rapprochés ne donnent qu’un seul traitement, et chaque titre une seule fois', async () => {
     document.body.innerHTML = '<ul id="liste"></ul>'
     surligner([webtoon('The Boxer'), webtoon('Solo')])
