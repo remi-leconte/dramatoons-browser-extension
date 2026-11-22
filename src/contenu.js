@@ -210,6 +210,8 @@
     observateur = null
     annulerMinuteries()
     enAttente.clear()
+    // La liste de l'utilisateur ne reste pas dans la page après une désactivation ou une déconnexion
+    prepares = null
   }
 
   function retirer() {
@@ -231,5 +233,7 @@
     else if (message?.type === 'retirer') retirer()
   })
 
-  globalThis.DramatoonsSurlignage = { surligner, retirer, DELAI_MS, DELAI_MAX_MS, OUBLI_MS }
+  const listeGardee = () => prepares !== null
+
+  globalThis.DramatoonsSurlignage = { surligner, retirer, listeGardee, DELAI_MS, DELAI_MAX_MS, OUBLI_MS }
 })()

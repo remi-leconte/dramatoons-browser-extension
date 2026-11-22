@@ -528,6 +528,15 @@ describe('contenu ajouté après le chargement (règle « surlignage » 10)', ()
     expect(titres()).toHaveLength(0)
   })
 
+  it('le retrait oublie la liste reçue (désactivation, déconnexion)', () => {
+    surligner([webtoon('The Boxer')])
+    expect(globalThis.DramatoonsSurlignage.listeGardee()).toBe(true)
+
+    recevoir({ type: 'retirer' })
+
+    expect(globalThis.DramatoonsSurlignage.listeGardee()).toBe(false)
+  })
+
   it('un ajout en attente au moment du retrait n’est pas surligné ensuite', async () => {
     document.body.innerHTML = '<ul id="liste"></ul>'
     surligner([webtoon('The Boxer')])
