@@ -49,7 +49,7 @@ describe('construction du zip de production', () => {
     expect(contientAdresseDev(`fetch('${API_PRODUCTION}/me')`)).toBe(false)
   })
 
-  it('tout fichier texte de la copie qui garde une adresse du dev est signalé ; les images sont sautées', () => {
+  it('tout fichier texte de la copie qui garde une adresse du dev est signalé ; les PNG sont sautées', () => {
     const fichiers = [
       { chemin: 'dist/src/lib/x.mjs', contenu: "const api = 'http://127.0.0.1:8081'" },
       { chemin: 'dist/src/popup.html', contenu: '<a href="http://localhost:5173">' },

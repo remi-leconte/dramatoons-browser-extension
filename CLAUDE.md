@@ -45,7 +45,7 @@ Un `.mjs` déclaré en script de contenu (dans le manifeste ou dans `lib/scripts
 - remplace `API_URL` de `config.mjs` par l'adresse de l'API de production ;
 - retire du manifeste l'accès à l'API du dev. Ce retrait nettoie le manifeste publié mais ne réduit pas les droits, déjà couverts par `<all_urls>`.
 
-La construction est refusée si `config.mjs` n'a pas exactement une ligne `export const API_URL = '…'`, si le manifeste n'autorise pas l'API de production, ou s'il reste une adresse du dev (`127.0.0.1`, `localhost`) dans un fichier de la copie (images exceptées). Le zip est fait par `web-ext build`. Aucun zip ne se publie depuis `src/`, qui pointe vers l'API du dev.
+La construction est refusée si `config.mjs` n'a pas exactement une ligne `export const API_URL = '…'`, si le manifeste n'autorise pas l'API de production, ou s'il reste une adresse du dev (`127.0.0.1`, `localhost`) dans un fichier de la copie (PNG exceptées : une image d'un autre format est à ajouter à `BINAIRES` dans `scripts/production.mjs`). Le zip est fait par `web-ext build`. Aucun zip ne se publie depuis `src/`, qui pointe vers l'API du dev.
 
 Le code n'est ni minifié ni assemblé : Mozilla n'exige donc pas de sources à part lors de l'envoi.
 

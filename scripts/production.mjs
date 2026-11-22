@@ -22,7 +22,8 @@ export function contientAdresseDev(texte) {
   return ADRESSES_DEV.some((adresse) => texte.includes(adresse))
 }
 
-// Seules les images sont sautées : tout autre fichier de la copie, avec ou sans extension, est lu comme du texte
+// Seules les PNG, format de toutes les icônes, sont sautées : tout autre fichier de la copie, avec ou sans extension,
+// est lu comme du texte (une icône d'un autre format serait à ajouter ici)
 const BINAIRES = new Set(['.png'])
 
 /** @param {{ chemin: string, contenu: string }[]} fichiers @returns {string[]} les chemins des fichiers fautifs */
