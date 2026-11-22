@@ -16,7 +16,7 @@
 
   // Chaque nœud de texte remplacé, avec ce qui l'a remplacé : le retrait remet le nœud d'origine lui-même. Un site
   // construit par un framework (React, Vue) garde des références vers ses nœuds de texte, qui doivent rester les mêmes
-  let remplacements = []
+  const remplacements = new Map()
 
   // !important : une feuille de style de la page ne doit pas rendre le surlignage illisible
   const styler = (element, styles) => {
@@ -83,26 +83,85 @@
       position = fin
     }
     if (position < texte.length) fragment.append(texte.slice(position))
-    remplacements.push({ origine: noeud, morceaux: [...fragment.childNodes] })
+    remplacements.set(noeud, [...fragment.childNodes])
     noeud.replaceWith(fragment)
   }
 
-  function retirer() {
-    for (const { origine, morceaux } of remplacements.reverse()) {
-      // Le nœud d'origine reprend la place du premier morceau encore dans la page ; si la page les a tous retirés,
-      // rien n'est remis
-      morceaux.find((morceau) => morceau.isConnected)?.before(origine)
-      for (const morceau of morceaux) morceau.remove()
+  function restituer(origine) {
+    const morceaux = remplacements.get(origine)
+    remplacements.delete(origine)
+    // Le nœud d'origine reprend la place du premier morceau encore dans la page ; si la page les a tous retirés,
+    // rien n'est remis
+    morceaux.find((morceau) => morceau.isConnected)?.before(origine)
+    for (const morceau of morceaux) morceau.remove()
+  }
+
+  // Contenu ajouté ou modifié après le surlignage (défilement infini, page suivante sans rechargement, éléments
+  // recyclés) : les modifications sont regroupées et traitées après DELAI_MS sans nouvelle modification, en ne
+  // relisant que les textes concernés
+  const DELAI_MS = 300
+  let prepares = null
+  let observateur = null
+  let minuterie = null
+  const enAttente = new Set()
+
+  function observer() {
+    observateur.observe(document.body, { childList: true, subtree: true, characterData: true })
+    // Un framework qui recycle un élément modifie le nœud d'origine, sorti de la page : sans cela, l'ancien titre
+    // surligné resterait affiché à la place du nouveau texte
+    for (const origine of remplacements.keys()) observateur.observe(origine, { characterData: true })
+  }
+
+  function traiterEnAttente() {
+    minuterie = null
+    // Les modifications faites ici par l'extension ne doivent pas relancer un traitement
+    observateur.disconnect()
+    for (const noeud of enAttente) {
+      if (remplacements.has(noeud)) restituer(noeud)
+      if (!noeud.isConnected) continue
+      if (noeud.nodeType === Node.TEXT_NODE) {
+        if (noeud.nodeValue.trim() && !ignore(noeud)) surlignerNoeud(noeud, prepares)
+      } else {
+        for (const texte of noeudsTexte(noeud)) surlignerNoeud(texte, prepares)
+      }
     }
-    remplacements = []
+    enAttente.clear()
+    observer()
+  }
+
+  function surveiller() {
+    observateur = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.type === 'characterData') enAttente.add(mutation.target)
+        else for (const ajoute of mutation.addedNodes) enAttente.add(ajoute)
+      }
+      if (enAttente.size === 0) return
+      clearTimeout(minuterie)
+      minuterie = setTimeout(traiterEnAttente, DELAI_MS)
+    })
+    observer()
+  }
+
+  function arreterSurveillance() {
+    observateur?.disconnect()
+    observateur = null
+    clearTimeout(minuterie)
+    minuterie = null
+    enAttente.clear()
+  }
+
+  function retirer() {
+    arreterSurveillance()
+    for (const origine of [...remplacements.keys()].reverse()) restituer(origine)
   }
 
   function surligner(liste) {
     retirer()
     // Document sans <body> (fichier SVG ou XML ouvert directement) : rien à surligner
     if (!document.body) return
-    const prepares = globalThis.DramatoonsCorrespondance.preparer(liste)
+    prepares = globalThis.DramatoonsCorrespondance.preparer(liste)
     for (const noeud of noeudsTexte(document.body)) surlignerNoeud(noeud, prepares)
+    surveiller()
   }
 
   chrome.runtime.onMessage.addListener((message) => {
@@ -110,5 +169,5 @@
     else if (message?.type === 'retirer') retirer()
   })
 
-  globalThis.DramatoonsSurlignage = { surligner, retirer }
+  globalThis.DramatoonsSurlignage = { surligner, retirer, DELAI_MS }
 })()

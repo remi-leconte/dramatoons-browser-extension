@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { simulerChrome } from './chrome-simule.js'
 
 let chrome
@@ -186,3 +186,158 @@ describe('surlignage dans la page (règles « extension - surlignage »)', () =>
     expect(globalThis.DramatoonsSurlignage).toBeDefined()
   })
 })
+
+describe('contenu ajouté après le chargement (règle « surlignage » 10)', () => {
+  const delai = () => globalThis.DramatoonsSurlignage.DELAI_MS
+  // Laisse passer les rappels du MutationObserver, puis le délai de regroupement
+  async function apresRegroupement() {
+    await Promise.resolve()
+    await vi.advanceTimersByTimeAsync(delai())
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+  })
+
+  afterEach(() => {
+    recevoir({ type: 'retirer' })
+    vi.useRealTimers()
+  })
+
+  it('un élément ajouté après le surlignage est surligné, après le délai de regroupement', async () => {
+    document.body.innerHTML = '<ul id="liste"><li>Rien</li></ul>'
+    surligner([webtoon('The Boxer', { note: 4 })])
+    const element = document.createElement('li')
+    element.textContent = 'The Boxer'
+    document.getElementById('liste').append(element)
+
+    await Promise.resolve()
+    expect(titres()).toHaveLength(0)
+    await vi.advanceTimersByTimeAsync(delai())
+
+    expect(titres().map((titre) => titre.textContent)).toEqual(['The Boxer'])
+    expect(pastilles().map((pastille) => pastille.textContent)).toEqual(['⭐ 4'])
+  })
+
+  it('un texte modifié sur place (élément recyclé) est surligné', async () => {
+    document.body.innerHTML = '<p id="carte">Rien</p>'
+    surligner([webtoon('The Boxer')])
+
+    document.getElementById('carte').firstChild.nodeValue = 'The Boxer'
+    await apresRegroupement()
+
+    expect(titres().map((titre) => titre.textContent)).toEqual(['The Boxer'])
+  })
+
+  it('un titre déjà surligné que le site recycle est remplacé par son nouveau texte, surligné s’il le faut', async () => {
+    document.body.innerHTML = '<p id="carte">The Boxer</p><p id="autre">The Boxer</p>'
+    const carte = document.getElementById('carte')
+    const autre = document.getElementById('autre')
+    // Les références que garde un framework : les nœuds de texte d'origine, sortis de la page par le surlignage
+    const texteCarte = carte.firstChild
+    const texteAutre = autre.firstChild
+    surligner([webtoon('The Boxer', { note: 4 }), webtoon('Solo', { note: 2 })])
+    expect(titres()).toHaveLength(2)
+
+    texteCarte.nodeValue = 'Solo'
+    texteAutre.nodeValue = 'Rien à voir'
+    await apresRegroupement()
+
+    expect(carte.textContent).toBe('Solo⭐ 2')
+    expect(carte.querySelector('.dramatoons-titre').textContent).toBe('Solo')
+    expect(autre.textContent).toBe('Rien à voir')
+    expect(autre.firstChild).toBe(texteAutre)
+
+    recevoir({ type: 'retirer' })
+    expect(carte.firstChild).toBe(texteCarte)
+    expect(carte.childNodes).toHaveLength(1)
+  })
+
+  it('plusieurs ajouts rapprochés ne donnent qu’un seul traitement, et chaque titre une seule fois', async () => {
+    document.body.innerHTML = '<ul id="liste"></ul>'
+    surligner([webtoon('The Boxer'), webtoon('Solo')])
+    const liste = document.getElementById('liste')
+
+    for (const titre of ['The Boxer', 'Solo']) {
+      const element = document.createElement('li')
+      element.textContent = titre
+      liste.append(element)
+      await Promise.resolve()
+      await vi.advanceTimersByTimeAsync(delai() / 2)
+    }
+    // Le second ajout a repoussé le traitement : sans ce regroupement, « The Boxer » serait déjà surligné
+    expect(titres()).toHaveLength(0)
+    await vi.advanceTimersByTimeAsync(delai())
+
+    expect(titres().map((titre) => titre.textContent)).toEqual(['The Boxer', 'Solo'])
+  })
+
+  it('les titres et pastilles posés par l’extension ne relancent aucun traitement', async () => {
+    document.body.innerHTML = '<ul id="liste"></ul>'
+    surligner([webtoon('The Boxer', { note: 4 })])
+    const element = document.createElement('li')
+    element.textContent = 'The Boxer'
+    document.getElementById('liste').append(element)
+    await apresRegroupement()
+    expect(titres()).toHaveLength(1)
+
+    await Promise.resolve()
+
+    expect(vi.getTimerCount()).toBe(0)
+    expect(titres()).toHaveLength(1)
+  })
+
+  it('un ajout dans un champ de saisie ou une zone éditable n’est pas surligné', async () => {
+    document.body.innerHTML = '<div contenteditable="true" id="zone"></div><form id="formulaire"></form>'
+    surligner([webtoon('The Boxer')])
+
+    document.getElementById('zone').textContent = 'The Boxer'
+    document.getElementById('formulaire').innerHTML =
+      '<textarea>The Boxer</textarea><select><option>The Boxer</option></select>'
+    await apresRegroupement()
+
+    expect(titres()).toHaveLength(0)
+  })
+
+  it('seuls les textes ajoutés sont relus, pas le reste de la page', async () => {
+    document.body.innerHTML = '<p>Ancien texte</p><ul id="liste"></ul>'
+    surligner([webtoon('The Boxer')])
+    const chercher = vi.spyOn(globalThis.DramatoonsCorrespondance, 'chercher')
+
+    const element = document.createElement('li')
+    element.textContent = 'The Boxer'
+    document.getElementById('liste').append(element)
+    await apresRegroupement()
+
+    expect(chercher.mock.calls.map(([texte]) => texte)).toEqual(['The Boxer'])
+    chercher.mockRestore()
+  })
+
+  it('après le retrait, plus rien n’est surveillé (désactivation, déconnexion)', async () => {
+    document.body.innerHTML = '<ul id="liste"></ul>'
+    surligner([webtoon('The Boxer')])
+    recevoir({ type: 'retirer' })
+
+    const element = document.createElement('li')
+    element.textContent = 'The Boxer'
+    document.getElementById('liste').append(element)
+    await apresRegroupement()
+
+    expect(titres()).toHaveLength(0)
+  })
+
+  it('un ajout en attente au moment du retrait n’est pas surligné ensuite', async () => {
+    document.body.innerHTML = '<ul id="liste"></ul>'
+    surligner([webtoon('The Boxer')])
+    const element = document.createElement('li')
+    element.textContent = 'The Boxer'
+    document.getElementById('liste').append(element)
+    await Promise.resolve()
+
+    recevoir({ type: 'retirer' })
+    await vi.advanceTimersByTimeAsync(delai())
+
+    expect(titres()).toHaveLength(0)
+  })
+})
+
