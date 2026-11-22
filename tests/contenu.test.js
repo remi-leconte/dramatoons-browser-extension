@@ -253,6 +253,33 @@ describe('contenu ajouté après le chargement (règle « surlignage » 10)', ()
     expect(carte.childNodes).toHaveLength(1)
   })
 
+  it('un <body> remplacé en entier (page suivante sans rechargement) est surligné et surveillé', async () => {
+    document.body.innerHTML = '<p>Rien</p>'
+    surligner([webtoon('The Boxer'), webtoon('Solo')])
+
+    const nouveau = document.createElement('body')
+    nouveau.innerHTML = '<ul id="liste"><li>The Boxer</li></ul>'
+    document.documentElement.replaceChild(nouveau, document.body)
+    await apresRegroupement()
+    expect(titres().map((titre) => titre.textContent)).toEqual(['The Boxer'])
+
+    const element = document.createElement('li')
+    element.textContent = 'Solo'
+    document.getElementById('liste').append(element)
+    await apresRegroupement()
+    expect(titres().map((titre) => titre.textContent)).toEqual(['The Boxer', 'Solo'])
+  })
+
+  it('un texte ajouté hors du <body> (titre de l’onglet) n’est pas surligné', async () => {
+    surligner([webtoon('The Boxer')])
+
+    document.title = 'The Boxer'
+    await apresRegroupement()
+
+    expect(document.title).toBe('The Boxer')
+    expect(document.querySelector('title').children).toHaveLength(0)
+  })
+
   it('plusieurs ajouts rapprochés ne donnent qu’un seul traitement, et chaque titre une seule fois', async () => {
     document.body.innerHTML = '<ul id="liste"></ul>'
     surligner([webtoon('The Boxer'), webtoon('Solo')])

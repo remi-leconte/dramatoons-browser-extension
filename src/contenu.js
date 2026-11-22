@@ -106,7 +106,8 @@
   const enAttente = new Set()
 
   function observer() {
-    observateur.observe(document.body, { childList: true, subtree: true, characterData: true })
+    // <html> plutôt que <body> : certains sites remplacent tout le <body> pour afficher la page suivante
+    observateur.observe(document.documentElement, { childList: true, subtree: true, characterData: true })
     // Un framework qui recycle un élément modifie le nœud d'origine, sorti de la page : sans cela, l'ancien titre
     // surligné resterait affiché à la place du nouveau texte
     for (const origine of remplacements.keys()) observateur.observe(origine, { characterData: true })
@@ -118,7 +119,8 @@
     observateur.disconnect()
     for (const noeud of enAttente) {
       if (remplacements.has(noeud)) restituer(noeud)
-      if (!noeud.isConnected) continue
+      // Hors du <body> (<head>, <title>), le texte ne s'affiche pas
+      if (!document.body?.contains(noeud)) continue
       if (noeud.nodeType === Node.TEXT_NODE) {
         if (noeud.nodeValue.trim() && !ignore(noeud)) surlignerNoeud(noeud, prepares)
       } else {
