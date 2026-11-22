@@ -469,6 +469,37 @@ describe('contenu ajouté après le chargement (règle « surlignage » 10)', ()
     expect(zone.querySelector('.dramatoons-pastille').textContent).toBe('⭐ 4')
   })
 
+  it('un nœud d’origine remis ailleurs par le site y reste, et y est surligné de nouveau', async () => {
+    document.body.innerHTML = '<p id="avant">The Boxer</p><p id="ailleurs"></p>'
+    const avant = document.getElementById('avant')
+    const ailleurs = document.getElementById('ailleurs')
+    const texte = avant.firstChild
+    surligner([webtoon('The Boxer')])
+
+    ailleurs.append(texte)
+    await apresRegroupement()
+
+    expect(avant.childNodes).toHaveLength(0)
+    expect(ailleurs.querySelector('.dramatoons-titre').textContent).toBe('The Boxer')
+    recevoir({ type: 'retirer' })
+    expect(ailleurs.firstChild).toBe(texte)
+    expect(avant.childNodes).toHaveLength(0)
+  })
+
+  it('un nœud d’origine remis ailleurs par le site juste avant le retrait y reste', async () => {
+    document.body.innerHTML = '<p id="avant">The Boxer</p><p id="ailleurs"></p>'
+    const avant = document.getElementById('avant')
+    const ailleurs = document.getElementById('ailleurs')
+    const texte = avant.firstChild
+    surligner([webtoon('The Boxer')])
+
+    ailleurs.append(texte)
+    recevoir({ type: 'retirer' })
+
+    expect(ailleurs.firstChild).toBe(texte)
+    expect(avant.childNodes).toHaveLength(0)
+  })
+
   it('plusieurs ajouts rapprochés ne donnent qu’un seul traitement, et chaque titre une seule fois', async () => {
     document.body.innerHTML = '<ul id="liste"></ul>'
     surligner([webtoon('The Boxer'), webtoon('Solo')])

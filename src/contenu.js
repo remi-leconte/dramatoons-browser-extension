@@ -130,8 +130,9 @@
     const morceaux = remplacements.get(origine)
     oublier(origine)
     // Le nœud d'origine reprend la place du premier morceau qui a encore un parent, même hors de la page : le site
-    // peut remettre cet élément plus tard. Si le site a jeté tous les morceaux, rien n'est remis
-    morceaux.find((morceau) => morceau.parentNode)?.before(origine)
+    // peut remettre cet élément plus tard. Si le site a jeté tous les morceaux, rien n'est remis ; s'il a remis
+    // lui-même le nœud d'origine ailleurs, il y reste
+    if (!origine.parentNode) morceaux.find((morceau) => morceau.parentNode)?.before(origine)
     for (const morceau of morceaux) morceau.remove()
   }
 
