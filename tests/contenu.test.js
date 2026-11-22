@@ -280,6 +280,25 @@ describe('contenu ajouté après le chargement (règle « surlignage » 10)', ()
     expect(document.querySelector('title').children).toHaveLength(0)
   })
 
+  it('une page qui change sans arrêt ne repousse pas le traitement au-delà du délai maximal', async () => {
+    document.body.innerHTML = '<span id="compteur">0</span><ul id="liste"></ul>'
+    surligner([webtoon('The Boxer')])
+    const compteur = document.getElementById('compteur').firstChild
+    const element = document.createElement('li')
+    element.textContent = 'The Boxer'
+    document.getElementById('liste').append(element)
+
+    // Le compteur change plus souvent que le délai de regroupement : sans plafond, rien ne serait jamais traité
+    const pas = delai() / 3
+    for (let temps = 0; temps < globalThis.DramatoonsSurlignage.DELAI_MAX_MS; temps += pas) {
+      compteur.nodeValue = String(temps)
+      await Promise.resolve()
+      await vi.advanceTimersByTimeAsync(pas)
+    }
+
+    expect(titres().map((titre) => titre.textContent)).toEqual(['The Boxer'])
+  })
+
   it('plusieurs ajouts rapprochés ne donnent qu’un seul traitement, et chaque titre une seule fois', async () => {
     document.body.innerHTML = '<ul id="liste"></ul>'
     surligner([webtoon('The Boxer'), webtoon('Solo')])

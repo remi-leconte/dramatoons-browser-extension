@@ -98,12 +98,22 @@
 
   // Contenu ajouté ou modifié après le surlignage (défilement infini, page suivante sans rechargement, éléments
   // recyclés) : les modifications sont regroupées et traitées après DELAI_MS sans nouvelle modification, en ne
-  // relisant que les textes concernés
+  // relisant que les textes concernés. DELAI_MAX_MS plafonne l'attente : une page qui change sans arrêt (compteur,
+  // lecteur vidéo) repousserait sinon le traitement indéfiniment
   const DELAI_MS = 300
+  const DELAI_MAX_MS = 1000
   let prepares = null
   let observateur = null
   let minuterie = null
+  let plafond = null
   const enAttente = new Set()
+
+  function annulerMinuteries() {
+    clearTimeout(minuterie)
+    clearTimeout(plafond)
+    minuterie = null
+    plafond = null
+  }
 
   function observer() {
     // <html> plutôt que <body> : certains sites remplacent tout le <body> pour afficher la page suivante
@@ -114,7 +124,7 @@
   }
 
   function traiterEnAttente() {
-    minuterie = null
+    annulerMinuteries()
     // Les modifications faites ici par l'extension ne doivent pas relancer un traitement
     observateur.disconnect()
     for (const noeud of enAttente) {
@@ -140,6 +150,7 @@
       if (enAttente.size === 0) return
       clearTimeout(minuterie)
       minuterie = setTimeout(traiterEnAttente, DELAI_MS)
+      plafond ??= setTimeout(traiterEnAttente, DELAI_MAX_MS)
     })
     observer()
   }
@@ -147,8 +158,7 @@
   function arreterSurveillance() {
     observateur?.disconnect()
     observateur = null
-    clearTimeout(minuterie)
-    minuterie = null
+    annulerMinuteries()
     enAttente.clear()
   }
 
@@ -171,5 +181,5 @@
     else if (message?.type === 'retirer') retirer()
   })
 
-  globalThis.DramatoonsSurlignage = { surligner, retirer, DELAI_MS }
+  globalThis.DramatoonsSurlignage = { surligner, retirer, DELAI_MS, DELAI_MAX_MS }
 })()
