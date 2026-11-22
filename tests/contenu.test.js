@@ -500,6 +500,25 @@ describe('contenu ajouté après le chargement (règle « surlignage » 10)', ()
     expect(avant.childNodes).toHaveLength(0)
   })
 
+  it('défaire une copie ne fusionne pas les nœuds de texte voisins, que le site peut garder', async () => {
+    document.body.innerHTML = '<p id="source">The Boxer</p><div id="zone"></div>'
+    surligner([webtoon('The Boxer')])
+    const bloc = document.createElement('div')
+    bloc.append(document.querySelector('.dramatoons-titre').cloneNode(true))
+    const site = document.createElement('span')
+    const [debut, fin] = [document.createTextNode('Lire '), document.createTextNode('ici')]
+    site.append(debut, fin)
+    bloc.append(site)
+
+    document.getElementById('zone').append(bloc)
+    await apresRegroupement()
+
+    expect(bloc.querySelector('.dramatoons-titre').textContent).toBe('The Boxer')
+    expect([...site.childNodes]).toEqual([debut, fin])
+    recevoir({ type: 'retirer' })
+    expect([...site.childNodes]).toEqual([debut, fin])
+  })
+
   it('plusieurs ajouts rapprochés ne donnent qu’un seul traitement, et chaque titre une seule fois', async () => {
     document.body.innerHTML = '<ul id="liste"></ul>'
     surligner([webtoon('The Boxer'), webtoon('Solo')])

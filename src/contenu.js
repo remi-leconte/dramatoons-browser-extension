@@ -57,26 +57,20 @@
   }
 
   // Copie d'un élément surligné (carrousel en boucle, carte dupliquée) : ses titres et pastilles ne sont pas suivis, et
-  // ne seraient ni retirés à la désactivation ni mis à jour. Ils redeviennent du texte, surligné de nouveau ensuite.
+  // ne seraient ni retirés à la désactivation ni mis à jour. Chaque titre redevient un texte à part, surligné de nouveau
+  // ensuite ; il n'est pas réuni à ses voisins, qui peuvent être des nœuds de texte suivis par un framework.
   // Renvoie ce qui tient la place de la racine après coup : le texte qui la remplace si c'est elle-même une copie
   function defaireCopies(racine) {
     let resultat = racine
     const copies = [...racine.querySelectorAll(`.${CLASSE_TITRE}, .${CLASSE_PASTILLE}`)]
     if (racine.matches(`.${CLASSE_TITRE}, .${CLASSE_PASTILLE}`)) copies.unshift(racine)
-    const parents = new Set()
     for (const copie of copies) {
       // Dans un champ de saisie ou une zone éditable, la copie appartient au texte de l'utilisateur
       if (suivi(copie) || !copie.parentNode || ignore(copie)) continue
-      parents.add(copie.parentNode)
       const texte = copie.classList.contains(CLASSE_PASTILLE) ? null : document.createTextNode(copie.textContent)
       if (texte) copie.replaceWith(texte)
       else copie.remove()
       if (copie === racine) resultat = texte
-    }
-    // Les textes séparés par la copie sont réunis, pour être cherchés en entier ; seulement dans la copie, et sans
-    // morceau suivi : un framework peut garder des références vers les nœuds de texte de la page
-    for (const parent of parents) {
-      if (racine.contains(parent) && ![...parent.childNodes].some(suivi)) parent.normalize()
     }
     return resultat
   }
