@@ -2,7 +2,7 @@
 
 Extension « Dramatoons Highlighter », commune à Firefox et aux navigateurs Chromium (Chrome, Edge) : un seul code et un seul manifeste (Manifest V3). JavaScript sans framework ni étape de construction. Règles métier : `extension.md` du skill `regles-metier` (workspace).
 
-Elle remplace les anciennes extensions `dramatoons-extension-firefox` et `dramatoons-extension-chromium` (version 2.x), gardées telles quelles jusqu'à sa publication. Elle reprend l'identifiant Firefox de l'ancienne (`browser_specific_settings.gecko.id`), qui ne doit jamais changer : c'est lui qui fait de chaque version une mise à jour de la fiche du store de Mozilla. Sa version suit celle du site (`2.5.0` pour la v2.5.0), et doit rester supérieure aux versions déjà publiées sur les stores.
+Son identifiant Firefox (`browser_specific_settings.gecko.id`) ne doit jamais changer : c'est lui qui fait de chaque version une mise à jour de la fiche du store de Mozilla. Sa version suit celle du site (`2.5.0` pour la v2.5.0), et doit rester supérieure aux versions déjà publiées sur les stores.
 
 ## Commandes
 Node n'est pas installé sur le poste : les commandes tournent dans le conteneur `node` de `compose.yaml`. Depuis `extension/` :
