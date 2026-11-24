@@ -2,7 +2,7 @@
 
 Extension « Dramatoons Highlighter », commune à Firefox et aux navigateurs basés sur Chromium (Chrome…) : un seul code et un seul manifeste (Manifest V3). JavaScript sans framework ni étape de construction. Règles métier : `extension.md` du skill `regles-metier` (workspace).
 
-Son identifiant Firefox (`browser_specific_settings.gecko.id`) ne doit jamais changer : c'est lui qui fait de chaque version une mise à jour de la fiche du store de Mozilla. Sa version suit celle du site (`2.5.0` pour la v2.5.0), et doit rester supérieure aux versions déjà publiées sur les stores.
+Son identifiant Firefox (`browser_specific_settings.gecko.id`) ne doit jamais changer : c'est lui qui fait de chaque version une mise à jour de la fiche du store de Mozilla. Sa version suit celle du site (`2.5.0` pour la v2.5.0), et doit rester supérieure aux versions déjà publiées sur le store de Mozilla.
 
 ## Commandes
 Node n'est pas installé sur le poste : les commandes tournent dans le conteneur `node` de `compose.yaml`. Depuis `extension/` :
@@ -55,7 +55,7 @@ Le code n'est ni minifié ni assemblé : Mozilla n'exige donc pas de sources à 
   1. `scripts/verifier.mjs` : `manifest.json` est un JSON valide, sa version est celle de `package.json`, chaque fichier qu'il référence (icônes, fenêtre, scripts) existe, et chaque fichier JS a une syntaxe valide, selon la convention de la section « Organisation ». Le JS de `scripts/` et `tests/` est vérifié comme module. `web-ext lint` ne suit que les règles de Firefox : ce script couvre aussi ce qui ne sert qu'à Chromium ;
   2. `scripts/lint-firefox.mjs` : `web-ext lint` sur `src/`, le validateur de Mozilla, le même que celui du store. Toute erreur et tout avertissement font échouer la CI, sauf `BACKGROUND_SERVICE_WORKER_IGNORED` : Firefox ignore volontairement la clé `service_worker`, qui sert aux navigateurs Chromium ;
   3. `scripts/construire.mjs` : construction du zip de production (voir « Zip de production ») ;
-  4. `scripts/lint-firefox.mjs dist/src` : le même validateur sur la copie de production, c'est-à-dire ce qui part sur les stores.
+  4. `scripts/lint-firefox.mjs dist/src` : le même validateur sur la copie de production, c'est-à-dire ce qui part sur le store de Mozilla et dans la release GitHub.
 - **Tests** : `npm ci`, puis `npm test`.
 
 ### Relecture IA
@@ -69,4 +69,4 @@ Le check « Relecture IA » est obligatoire pour fusionner dans `main` (ruleset)
 `.github/workflows/livraison.yml` tourne sur un tag `vX.Y.Z`. Il refuse un tag d'une autre forme, un tag dont le commit n'est pas posé directement sur `main` (`git rev-list --first-parent` : fusion d'une PR relue, et non commit intermédiaire d'une branche fusionnée), ou dont la version n'est pas celle du manifeste. Il lance ensuite `npm run ci` et `npm test`, puis crée la release GitHub du tag (notes générées par GitHub) avec le zip de production joint. Deux jobs : « Construction » (`contents: read`) fait les contrôles, les vérifications, les tests et le zip, transmis comme artefact ; « Release GitHub », seul à avoir un jeton en écriture (`contents: write`), n'installe rien et n'exécute aucun code du dépôt ni de ses dépendances : il récupère le zip et crée la release. Les actions sont épinglées sur un commit, et le cache npm est désactivé explicitement (`package-manager-cache: false`) : le zip publié ne dépend que du lockfile, installé à neuf. Un tag déjà livré fait échouer la création de la release : pour relivrer, supprimer d'abord la release dans GitHub. L'envoi sur le store de Mozilla reste manuel, depuis le zip de la release ; sur Chrome et les autres navigateurs Chromium, l'utilisateur installe ce zip lui-même.
 
 ## Git
-Workflow : skill `workflow-github`. Pas de branche `release/*` : chaque branche de ticket part de `main` et y revient par PR. Une version publiée sur les stores porte le tag `vX.Y.Z`, posé sur `main` par Claude à la demande de l'utilisateur ; il déclenche la livraison (voir « Livraison »).
+Workflow : skill `workflow-github`. Pas de branche `release/*` : chaque branche de ticket part de `main` et y revient par PR. Une version publiée (store de Mozilla et release GitHub) porte le tag `vX.Y.Z`, posé sur `main` par Claude à la demande de l'utilisateur ; il déclenche la livraison (voir « Livraison »).

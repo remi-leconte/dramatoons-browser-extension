@@ -1,7 +1,7 @@
 name: Livraison
 
 # Tag vX.Y.Z posé sur main : le zip de production est construit et joint à la release GitHub du tag.
-# L'envoi sur les stores reste manuel, depuis ce zip
+# L'envoi sur le store de Mozilla reste manuel, depuis ce zip
 on:
   push:
     tags:
