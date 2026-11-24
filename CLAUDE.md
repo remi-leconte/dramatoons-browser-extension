@@ -41,7 +41,7 @@ Un `.mjs` déclaré en script de contenu (dans le manifeste ou dans `lib/scripts
 - `tests/` : tests Vitest (`*.test.js`). `chrome-simule.js` remplace l'API `chrome` du navigateur (stockages en mémoire) ; les tests de la fenêtre et du script de contenu tournent dans `happy-dom`.
 
 ## Zip de production
-`npm run build` (`scripts/construire.mjs`) construit le zip de production, le même pour tous les navigateurs : envoyé sur le store de Mozilla, et installé à la main sur Chrome et les autres navigateurs Chromium, dont les stores refusent la clé `background.scripts` du manifeste commun, nécessaire à Firefox (tutoriel `/install-tutorial` du site, qui pointe vers la dernière release GitHub) : `dist/dramatoons-highlighter-<version>.zip` (`dist/` est ignoré par git). Il copie `src/` dans `dist/src`, puis, dans cette copie seulement (`scripts/production.mjs`, testé par `tests/production.test.js`) :
+`npm run build` (`scripts/construire.mjs`) construit le zip de production, le même pour tous les navigateurs : envoyé sur le store de Mozilla, et installé à la main sur Chrome et les autres navigateurs Chromium (tutoriel `/install-tutorial` du site, qui pointe vers la dernière release GitHub) : `dist/dramatoons-highlighter-<version>.zip` (`dist/` est ignoré par git). Il copie `src/` dans `dist/src`, puis, dans cette copie seulement (`scripts/production.mjs`, testé par `tests/production.test.js`) :
 - remplace `API_URL` de `config.mjs` par l'adresse de l'API de production ;
 - retire du manifeste l'accès à l'API du dev. Ce retrait nettoie le manifeste publié mais ne réduit pas les droits, déjà couverts par `<all_urls>`.
 
