@@ -21,10 +21,10 @@ Le surlignage ne change rien d'autre à la page : les liens fonctionnent toujour
 
 ## Navigateurs
 
-Firefox, Chrome, Edge et tous les navigateurs basés sur Chromium (Brave, notamment), avec un seul code et un seul zip (Manifest V3).
+Firefox, Chrome et les autres navigateurs basés sur Chromium, avec un seul code et un seul zip (Manifest V3).
 
-- **Firefox et Edge** : depuis leur store, avec mises à jour automatiques.
-- **Chrome, Brave et les autres navigateurs Chromium** : installation manuelle depuis le zip de la [dernière release](https://github.com/remi-leconte/dramatoons-browser-extension/releases/latest), décrite pas à pas par le [tutoriel du site](https://dramatoons.ovh/install-tutorial). Une extension installée ainsi ne se met pas à jour seule.
+- **Firefox** : depuis son store, avec mises à jour automatiques.
+- **Chrome et les autres navigateurs basés sur Chromium** : installation manuelle depuis le zip de la [dernière release](https://github.com/remi-leconte/dramatoons-browser-extension/releases/latest), décrite pas à pas par le [tutoriel du site](https://dramatoons.ovh/install-tutorial). Une extension installée ainsi ne se met pas à jour seule.
 
 ## Vie privée et permissions
 
@@ -74,15 +74,14 @@ docker compose run --rm node npm ci
 
 Puis charger le dossier `src/` dans le navigateur :
 - **Firefox** : `about:debugging#/runtime/this-firefox`, « Charger un module complémentaire temporaire… », puis choisir `src/manifest.json` ;
-- **Chrome** : `chrome://extensions`, activer le « Mode développeur », puis « Charger l'extension non empaquetée » et choisir `src/` ;
-- **Edge** : `edge://extensions`, même démarche que Chrome.
+- **Chrome et les autres navigateurs basés sur Chromium** : `chrome://extensions`, activer le « Mode développeur », puis « Charger l'extension non empaquetée » et choisir `src/`.
 
 Après une modification, recharger l'extension depuis la même page, puis l'onglet.
 
 ## Qualité
 
 - **Tests** : Vitest, sur la session et ses renouvellements, l'activation des onglets, la correspondance des titres, le surlignage et son retrait (y compris les pages qui changent), la fenêtre et la construction du zip de production. Ils tournent dans un DOM simulé (happy-dom), avec une API `chrome` simulée, et ne contactent jamais l'API.
-- **Vérifications** : validité du manifeste et des fichiers qu'il référence, syntaxe de chaque fichier JavaScript, et `web-ext lint`, le validateur de Mozilla, sur `src/` et sur la copie de production : tout avertissement fait échouer la CI, sauf celui de la clé `service_worker`, que Firefox ignore volontairement parce qu'elle sert à Chrome et Edge.
+- **Vérifications** : validité du manifeste et des fichiers qu'il référence, syntaxe de chaque fichier JavaScript, et `web-ext lint`, le validateur de Mozilla, sur `src/` et sur la copie de production : tout avertissement fait échouer la CI, sauf celui de la clé `service_worker`, que Firefox ignore volontairement parce qu'elle sert aux navigateurs Chromium.
 - **Intégration continue** (GitHub Actions) : vérifications, construction du zip et tests sur chaque pull request. Une relecture par IA relit en plus chaque pull request, en priorité sur la sécurité et les règles métier ; la moindre remarque la bloque.
 
 ```sh
@@ -92,7 +91,7 @@ docker compose run --rm node npm test     # tests
 
 ## Livraison
 
-`npm run build` construit le zip de production dans `dist/` : une copie de `src/` qui appelle l'API de production, refusée s'il y reste une adresse du développement. Un tag `vX.Y.Z` posé sur `main` relance les vérifications et les tests, puis joint ce zip à la release GitHub du tag. Le même zip est ensuite envoyé à la main sur les stores de Mozilla et d'Edge ; sur Chrome et les autres navigateurs Chromium, il s'installe à la main. Le détail est dans les sections « Zip de production » et « Livraison » du [`CLAUDE.md`](CLAUDE.md).
+`npm run build` construit le zip de production dans `dist/` : une copie de `src/` qui appelle l'API de production, refusée s'il y reste une adresse du développement. Un tag `vX.Y.Z` posé sur `main` relance les vérifications et les tests, puis joint ce zip à la release GitHub du tag. Le même zip est ensuite envoyé à la main sur le store de Mozilla ; sur Chrome et les autres navigateurs Chromium, il s'installe à la main. Le détail est dans les sections « Zip de production » et « Livraison » du [`CLAUDE.md`](CLAUDE.md).
 
 ## Projet Dramatoons
 

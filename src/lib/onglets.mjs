@@ -1,4 +1,4 @@
-// storage.session plutôt qu'une variable : sur Chrome et Edge, l'arrière-plan s'endort et perd sa mémoire.
+// storage.session plutôt qu'une variable : sur les navigateurs Chromium, l'arrière-plan s'endort et perd sa mémoire.
 // storage.session est vidé à la fermeture du navigateur, comme l'état des onglets
 const cleEtat = (ongletId) => `onglet-${ongletId}`
 const cleListe = (ongletId) => `liste-${ongletId}`

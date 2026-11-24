@@ -1,5 +1,5 @@
 // web-ext lint, avertissements compris, sauf celui-ci : le manifeste déclare l'arrière-plan pour les deux
-// navigateurs, et Firefox ignore volontairement la clé service_worker (Chrome et Edge, eux, ignorent scripts)
+// navigateurs, et Firefox ignore volontairement la clé service_worker (les navigateurs Chromium, eux, ignorent scripts)
 import { spawnSync } from 'node:child_process'
 
 const ATTENDUS = new Set(['BACKGROUND_SERVICE_WORKER_IGNORED'])
