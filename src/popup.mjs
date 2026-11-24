@@ -33,7 +33,7 @@ export async function initialiser(doc = document) {
   }
 
   async function afficher() {
-    // L'accès aux sites d'abord, quel que soit le reste : sur Chrome et Edge, le retirer peut aussi bloquer l'API,
+    // L'accès aux sites d'abord, quel que soit le reste : sur les navigateurs Chromium, le retirer peut aussi bloquer l'API,
     // et la fenêtre doit quand même proposer de le rendre
     acces = await chrome.permissions.contains(TOUS_LES_SITES)
     element('acces').hidden = acces

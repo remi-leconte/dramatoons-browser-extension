@@ -1,4 +1,4 @@
-// Construit le zip publié sur les stores : une copie de src/ réglée pour la production, dans dist/
+// Construit le zip publié sur le store de Mozilla et dans la release GitHub : une copie de src/ réglée pour la production, dans dist/
 import { spawnSync } from 'node:child_process'
 import { cpSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
